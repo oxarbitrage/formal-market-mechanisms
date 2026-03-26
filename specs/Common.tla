@@ -9,6 +9,16 @@ OQty(o)     == o[3]
 OId(o)      == o[4]
 OTime(o)    == o[5]
 
+\* ── Trade field accessors ──
+\* Trade tuple: <<buyer, seller, tradePrice, qty, time, buyLimit, sellLimit>>
+TBuyer(t)     == t[1]
+TSeller(t)    == t[2]
+TPrice(t)     == t[3]
+TQty(t)       == t[4]
+TTime(t)      == t[5]
+TBuyLimit(t)  == t[6]
+TSellLimit(t) == t[7]
+
 \* ── Sequence helpers ──
 RemoveAt(s, i)      == SubSeq(s, 1, i-1) \o SubSeq(s, i+1, Len(s))
 ReplaceAt(s, i, v)  == SubSeq(s, 1, i-1) \o <<v>> \o SubSeq(s, i+1, Len(s))

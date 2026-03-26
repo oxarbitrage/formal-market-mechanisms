@@ -75,10 +75,12 @@ MatchOrders ==
         /\ OPrice(buy) >= OPrice(sell)
         \* Self-trade prevention
         /\ OTrader(buy) /= OTrader(sell)
+        \* Trade tuple: <<buyer, seller, tradePrice, qty, time, buyLimit, sellLimit>>
         /\ LET fillQty    == Min(OQty(buy), OQty(sell))
                tradePrice == OPrice(sell)
                trade      == <<OTrader(buy), OTrader(sell),
-                              tradePrice, fillQty, time>>
+                              tradePrice, fillQty, time,
+                              OPrice(buy), OPrice(sell)>>
            IN
             /\ trades' = Append(trades, trade)
             /\ buyBook' =
@@ -128,14 +130,18 @@ PositiveBookQuantities ==
 
 \* Every trade has quantity > 0.
 PositiveTradeQuantities ==
-    \A i \in 1..Len(trades) : trades[i][4] > 0
+    \A i \in 1..Len(trades) : TQty(trades[i]) > 0
 
-\* Price improvement: trade price is <= buyer's limit and >= seller's limit.
-\* Trade tuple: <<buyer, seller, price, qty, time>>
-\* We check this by verifying the trade price equals the ask (our execution convention),
-\* and the matching engine only fires when bid >= ask, so bid >= tradePrice >= ask holds.
+\* Price improvement: every trade executes at a price that is
+\* <= the buyer's limit (buyer pays no more than willing)
+\* >= the seller's limit (seller receives no less than willing)
+PriceImprovement ==
+    \A i \in 1..Len(trades) :
+        /\ TPrice(trades[i]) <= TBuyLimit(trades[i])
+        /\ TPrice(trades[i]) >= TSellLimit(trades[i])
+
 NoSelfTrades ==
-    \A i \in 1..Len(trades) : trades[i][1] /= trades[i][2]
+    \A i \in 1..Len(trades) : TBuyer(trades[i]) /= TSeller(trades[i])
 
 \* All order IDs on the books are unique.
 UniqueOrderIds ==
@@ -168,7 +174,13 @@ ConservationOfAssets ==
         \E other \in Traders :
             BuyQty[t] + SellQty[t] >= 0
 
+\* ── Temporal properties ──
+
+\* If a matchable pair exists between different traders, it is eventually matched.
+EventualMatching ==
+    BookCrossedDifferentTraders ~> ~BookCrossedDifferentTraders
+
 Spec ==
-    Init /\ [][Next]_vars
+    Init /\ [][Next]_vars /\ WF_vars(MatchOrders)
 
 ====
