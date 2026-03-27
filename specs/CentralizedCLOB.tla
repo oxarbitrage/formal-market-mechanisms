@@ -174,6 +174,18 @@ ConservationOfAssets ==
         \E other \in Traders :
             BuyQty[t] + SellQty[t] >= 0
 
+\* ── Comparison properties (contrast with BatchedAuction) ──
+
+\* The CLOB does NOT have uniform pricing: different trades can execute
+\* at different prices. This is what enables spread arbitrage.
+\* This property is expected to be TRUE for the CLOB (trades CAN differ).
+\* To verify: try adding "INVARIANT AllTradesSamePrice" — TLC should find
+\* a counterexample showing two trades at different prices.
+AllTradesSamePrice ==
+    \A i \in 1..Len(trades) :
+        \A j \in 1..Len(trades) :
+            TPrice(trades[i]) = TPrice(trades[j])
+
 \* ── Temporal properties ──
 
 \* If a matchable pair exists between different traders, it is eventually matched.
