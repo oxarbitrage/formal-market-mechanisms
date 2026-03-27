@@ -8,6 +8,26 @@ TLA+ specifications for comparing market mechanisms. The goal is to formally ver
 
 A continuous limit order book with a single matching engine. Orders are matched immediately using price-time priority.
 
+```mermaid
+graph LR
+    subgraph Order Book
+        BB[Buy Book<br/>sorted by price desc]
+        SB[Sell Book<br/>sorted by price asc]
+    end
+
+    O1[Submit Buy] --> BB
+    O2[Submit Sell] --> SB
+
+    BB -- "best bid >= best ask" --> ME{Match Engine}
+    SB -- "best bid >= best ask" --> ME
+
+    ME -- "fill at ask price" --> T[Trade]
+    ME -- "partial fill" --> BB
+    ME -- "partial fill" --> SB
+```
+
+Each order is matched **immediately** on arrival. The trade executes at the resting order's price. Different trades can execute at different prices (enabling spread arbitrage).
+
 - **Matching**: best bid vs best ask, executes at the ask (resting order) price
 - **Partial fills**: smaller side is fully filled, larger side's quantity is reduced
 - **Self-trade prevention**: a trader cannot match against themselves
@@ -27,6 +47,33 @@ A continuous limit order book with a single matching engine. Orders are matched 
 
 A periodic auction that collects orders over a batch window, then clears all at a single uniform price that maximizes traded volume.
 
+```mermaid
+graph LR
+    subgraph Collecting
+        BO[Buy Orders]
+        SO[Sell Orders]
+    end
+
+    O1[Submit Buy] --> BO
+    O2[Submit Sell] --> SO
+
+    BO --> CB[Close Batch]
+    SO --> CB
+
+    subgraph Clearing
+        CB --> D[Demand Curve]
+        CB --> S[Supply Curve]
+        D --> CP[Clearing Price<br/>max volume]
+        S --> CP
+    end
+
+    CP -- "all at uniform price" --> T[Trades]
+    T --> R[Reset]
+    R -. "next batch" .-> BO
+```
+
+Orders accumulate during the **collection phase** without matching. When the batch closes, a single **clearing price** is computed that maximizes traded volume. All trades execute at this uniform price — no spread to capture.
+
 - **Collection phase**: orders accumulate without matching
 - **Clearing phase**: compute clearing price from aggregate supply/demand curves, fill eligible orders at the uniform price
 - **Self-trade prevention**: buyer-seller pairs with the same trader are skipped during clearing
@@ -43,6 +90,35 @@ A periodic auction that collects orders over a batch window, then clears all at 
 | EventualClearing | Liveness | Every batch eventually clears |
 
 ## Comparison
+
+Same orders, different outcomes:
+
+```mermaid
+graph TB
+    subgraph Input
+        O["Orders:<br/>Alice buy@2, Alice buy@1<br/>Bob sell@2, Bob sell@1"]
+    end
+
+    O --> CLOB
+    O --> Batch
+
+    subgraph CLOB["CentralizedCLOB"]
+        direction TB
+        C1["Trade 1: price = 2<br/>(Alice buy@2 vs Bob sell@2)"]
+        C2["Trade 2: price = 1<br/>(Alice buy@1 vs Bob sell@1)"]
+        C1 --> CS["Two different prices<br/>Spread arbitrage possible"]
+    end
+
+    subgraph Batch["BatchedAuction"]
+        direction TB
+        B1["Clearing price = 1<br/>(maximizes volume)"]
+        B2["All trades at price = 1"]
+        B1 --> BS["One uniform price<br/>No spread arbitrage"]
+    end
+
+    style CS fill:#fee
+    style BS fill:#efe
+```
 
 The key structural difference, verified by TLC:
 
