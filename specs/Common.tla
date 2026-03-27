@@ -24,5 +24,6 @@ RemoveAt(s, i)      == SubSeq(s, 1, i-1) \o SubSeq(s, i+1, Len(s))
 ReplaceAt(s, i, v)  == SubSeq(s, 1, i-1) \o <<v>> \o SubSeq(s, i+1, Len(s))
 
 Min(a, b) == IF a <= b THEN a ELSE b
+Max(a, b) == IF a >= b THEN a ELSE b
 
 ====

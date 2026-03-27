@@ -1,4 +1,4 @@
----- MODULE ContinuousOrderBook ----
+---- MODULE CentralizedCLOB ----
 EXTENDS TLC, Common
 
 CONSTANTS Traders, Prices, Quantities, MaxTime, MaxOrders
