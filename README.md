@@ -184,6 +184,38 @@ To see counterexamples:
 - **CLOB non-uniform pricing**: add `INVARIANT AllTradesSamePrice` to `CentralizedCLOB.cfg` (with `MaxTime = 4`, `MaxOrders = 4`)
 - **AMM non-uniform pricing**: add `INVARIANT AllSwapsSamePrice` to `AMM.cfg` (with `MaxTime = 4`)
 
+## Conclusions
+
+The formal verification reveals a fundamental three-way trade-off between **fairness**, **liquidity**, and **immediacy**. No mechanism dominates — each one guarantees properties the others provably cannot.
+
+```mermaid
+graph TD
+    F["Fairness<br/>(uniform price, order-independent)"]
+    L["Liquidity<br/>(always available)"]
+    I["Immediacy<br/>(instant execution, price improvement)"]
+
+    F --- BA["BatchedAuction<br/>✓ Uniform pricing<br/>✓ No spread arbitrage<br/>✓ Ordering independence<br/>✗ No always-on liquidity<br/>✗ Must wait for batch"]
+    L --- AMM_N["AMM<br/>✓ Always-available liquidity<br/>✓ Constant product guaranteed<br/>✗ Price impact per swap<br/>✗ Non-uniform pricing<br/>✗ Ordering dependent"]
+    I --- CLOB_N["CentralizedCLOB<br/>✓ Immediate matching<br/>✓ Price improvement<br/>✗ Non-uniform pricing<br/>✗ Ordering dependent<br/>✗ Liquidity depends on book"]
+
+    style BA fill:#efe
+    style AMM_N fill:#eef
+    style CLOB_N fill:#fee
+```
+
+**What TLC proves (not just argues):**
+
+| Conclusion | Evidence |
+|---|---|
+| Batched auctions eliminate spread arbitrage | `NoSpreadArbitrage` and `UniformClearingPrice` hold across all reachable states |
+| Submission order cannot affect batch outcomes | `OrderingIndependence` verified — same orders in any sequence produce same clearing price |
+| CLOBs produce different prices for the same set of orders | TLC counterexample: two trades at prices 1 and 2 from identical order set |
+| AMM price depends on swap ordering and size | TLC counterexample: same input amounts yield different output amounts depending on reserve state |
+| AMM liquidity never runs out | `PositiveReserves` + `PositiveSwapOutput` hold in all states — swaps always succeed |
+| All three mechanisms conserve assets | `ConservationOfAssets` / `ConservationOfTokens` verified for each |
+
+**The impossibility triangle:** a mechanism that clears at a uniform price (fairness) must collect orders before clearing, sacrificing immediacy. A mechanism that always has liquidity (AMM) must price algorithmically, creating price impact that depends on ordering. A mechanism that matches immediately (CLOB) exposes different prices to different participants, enabling spread arbitrage. These are structural constraints, not implementation choices — they follow from the definitions of the mechanisms themselves.
+
 ## Shared
 
 `Common.tla` contains reusable definitions across all mechanisms:
