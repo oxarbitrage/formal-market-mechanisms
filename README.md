@@ -219,6 +219,53 @@ The attack works because AMM pricing is **path-dependent**: the adversary's fron
 | NoPriceDegradation | Victim gets at least as much output as without the attack (FAILS: 7B vs 9B baseline) |
 | NoAdversaryProfit | Adversary does not end up with more tokens than they started (FAILS: spent 9A, got back 10A) |
 
+### LatencyArbitrage
+
+Models latency arbitrage between two CLOBs — the core mechanism from [Budish, Cramton, and Shim (2015)](https://faculty.chicagobooth.edu/eric.budish/research/HFT-FrequentBatchAuctions.pdf). When a public signal moves the "true" price, one exchange updates faster than the other. A fast trader snipes the stale quote on the slow exchange before the market maker can update. This models the HFT arms race between NYSE and BATS/IEX, cross-exchange crypto arbitrage (Binance vs Coinbase), and cross-L2 latency (Arbitrum vs Optimism).
+
+```mermaid
+sequenceDiagram
+    participant Fast as Fast Exchange<br/>(updated)
+    participant Arb as Arbitrageur
+    participant Slow as Slow Exchange<br/>(stale quotes)
+    participant MM as Market Maker
+
+    Note over Fast,Slow: both: bid=10, ask=11
+
+    Note over Fast,Slow: PUBLIC SIGNAL: price jumps +3
+
+    Fast->>Fast: updates: bid=13, ask=14
+    Note over Slow: still: bid=10, ask=11<br/>(stale!)
+
+    Arb->>Slow: buy 5 units at stale ask=11
+    Arb->>Fast: sell 5 units at new bid=13
+    Note over Arb: profit: (13-11) × 5 = 10
+
+    Note over MM: lost 10 on stale fills<br/>(adverse selection)
+
+    Slow->>Slow: finally updates: bid=13, ask=14
+    Note over Fast,Slow: quotes converged (too late)
+```
+
+Budish et al.'s argument: continuous limit order books create an arms race where speed advantages translate to sniping profits. Batch auctions eliminate this because all orders in a batch get the same price — there is no stale quote to snipe. Our `BatchedAuction` spec verifies `OrderingIndependence`, confirming that submission timing cannot affect the clearing price.
+
+- **Stale quote sniping**: fast trader exploits latency gap between exchanges
+- **Zero-sum**: arbitrageur's profit exactly equals market maker's loss (verified: `ZeroSum`)
+- **Quotes converge**: after the slow exchange updates, prices are aligned (verified: `QuotesConverge`)
+- **Batch auction solution**: `OrderingIndependence` eliminates the concept of "stale" quotes entirely
+
+**Verified properties:**
+| Property | Type | Description |
+|---|---|---|
+| QuotesConverge | Invariant | After slow exchange updates, both exchanges have identical quotes |
+| ZeroSum | Invariant | Arbitrage profit exactly equals market maker loss |
+
+**Latency arbitrage properties (expected to fail — add as INVARIANT to see counterexamples):**
+| Property | Description |
+|---|---|
+| NoArbitrageProfit | No one profits from being faster (FAILS: arb profits 10 by buying at stale 11, selling at 13) |
+| MarketMakerNotHarmed | Market makers not harmed by latency (FAILS: MM loses 10 on stale fills = adverse selection) |
+
 ### FrontRunning
 
 Models front-running on a CLOB — the CLOB analog of `SandwichAttack` (which targets AMMs). An adversary who controls transaction ordering consumes cheap sell-side liquidity before a victim's buy order, forcing the victim to fill at worse prices. This models HFT latency arbitrage, block builder front-running, and validator front-running in on-chain CLOBs like [dYdX](https://dydx.exchange/) and [Serum/OpenBook](https://www.openbook-solana.com/).
@@ -556,6 +603,7 @@ To see counterexamples:
 - **CLOB non-uniform pricing**: add `INVARIANT AllTradesSamePrice` to `CentralizedCLOB.cfg` (with `MaxTime = 4`, `MaxOrders = 4`)
 - **AMM non-uniform pricing**: add `INVARIANT AllSwapsSamePrice` to `AMM.cfg` (with `MaxTime = 4`)
 - **Decentralized CLOB divergence**: add `INVARIANT ConsensusOnTrades` (or `ConsensusOnPrices`, `ConsensusOnVolume`) to `DecentralizedCLOB.cfg`
+- **Latency arbitrage**: add `INVARIANT NoArbitrageProfit` or `INVARIANT MarketMakerNotHarmed` to `LatencyArbitrage.cfg`
 - **CLOB front-running**: add `INVARIANT NoPriceDegradation` or `INVARIANT NoAdversaryProfit` to `FrontRunning.cfg`
 - **Wash trading**: add `INVARIANT NoWashTrading`, `INVARIANT NoManipulatorLoss`, or `INVARIANT VolumeReflectsActivity` to `WashTrading.cfg`
 - **Sandwich attack**: add `INVARIANT NoPriceDegradation` or `INVARIANT NoAdversaryProfit` to `SandwichAttack.cfg`
@@ -595,6 +643,8 @@ graph TD
 | CLOBs produce different prices for the same set of orders | TLC counterexample: two trades at prices 1 and 2 from identical order set |
 | Decentralizing a CLOB breaks consensus | TLC counterexample: same orders delivered in different sequence → one node executes a trade, the other executes none |
 | AMM price depends on swap ordering and size | TLC counterexample: same input amounts yield different output amounts depending on reserve state |
+| CLOB latency differences enable sniping profits | TLC counterexample: price jumps +3, arb buys 5 at stale ask 11 and sells at new bid 13 = profit 10; MM bears the loss (zero-sum verified) |
+| Batch auctions eliminate latency arbitrage (Budish et al.) | `OrderingIndependence` means there are no stale quotes to snipe — all orders clear at the same price regardless of timing |
 | CLOBs are vulnerable to front-running | TLC counterexample: adversary buys 1 unit at 10, victim pays 40 instead of 35 (14% degradation); adversary profits from buying below market |
 | AMMs are vulnerable to wash trading | TLC counterexample: 1 round-trip generates 19 units of volume at cost of 1A in fees; no identity check to prevent self-trading |
 | AMMs are vulnerable to sandwich attacks | TLC counterexample: adversary extracts 1A profit while victim loses 2B (22% worse output) |
@@ -630,6 +680,7 @@ java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC CentralizedCLOB -config Centraliz
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC BatchedAuction -config BatchedAuction.cfg -modelcheck
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC AMM -config AMM.cfg -modelcheck
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC DecentralizedCLOB -config DecentralizedCLOB.cfg -modelcheck
+java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC LatencyArbitrage -config LatencyArbitrage.cfg -modelcheck
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC FrontRunning -config FrontRunning.cfg -modelcheck
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC WashTrading -config WashTrading.cfg -modelcheck
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC SandwichAttack -config SandwichAttack.cfg -modelcheck
@@ -655,7 +706,6 @@ Or use the [TLA+ VS Code extension](https://marketplace.visualstudio.com/items?i
 
 ## Planned
 
-- **CLOB+CLOB arbitrage** - cross-venue latency arbitrage between two CLOBs, the arms race that Budish et al. argue batch auctions eliminate
 - **Triangular arbitrage** - A→B→C→A price cycles within a single venue, multi-asset extension
 - Privacy/visibility model across all mechanisms (extending ZKDarkPool's approach)
 - Adversarial conditions and manipulation resistance analysis
