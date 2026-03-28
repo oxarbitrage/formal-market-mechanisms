@@ -6,7 +6,7 @@ TLA+ specifications for comparing market mechanisms. The goal is to formally ver
 
 ### CentralizedCLOB
 
-A continuous limit order book with a single matching engine. Orders are matched immediately using price-time priority.
+A continuous limit order book with a single matching engine. Orders are matched immediately using price-time priority. This models traditional exchanges like NYSE, NASDAQ, and centralized crypto exchanges (Binance, Coinbase).
 
 ```mermaid
 graph LR
@@ -45,7 +45,9 @@ Each order is matched **immediately** on arrival. The trade executes at the rest
 
 ### BatchedAuction
 
-A periodic auction that collects orders over a batch window, then clears all at a single uniform price that maximizes traded volume.
+A periodic auction that collects orders over a batch window, then clears all at a single uniform price that maximizes traded volume. This models systems like [Penumbra](https://penumbra.zone/) (sealed-bid batch auctions with privacy on Cosmos), [CoW Protocol](https://cow.fi/) (batch auctions for MEV protection), and NYSE/NASDAQ opening/closing auctions. The academic foundation is Budish, Cramton, and Shim's "[The High-Frequency Trading Arms Race](https://faculty.chicagobooth.edu/eric.budish/research/HFT-FrequentBatchAuctions.pdf)" (2015), which proposes frequent batch auctions to eliminate the latency arms race.
+
+Because `OrderingIndependence` is verified, batch auctions are safe to decentralize — validators only need to agree on the **set** of orders, not their **sequence**. This is why Penumbra and CoW Protocol can run batch auctions across distributed validators without the consensus problems that plague decentralized CLOBs.
 
 ```mermaid
 graph LR
@@ -91,7 +93,7 @@ Orders accumulate during the **collection phase** without matching. When the bat
 
 ### AMM (Automated Market Maker)
 
-A constant-product market maker (x*y=k). No order book — traders swap against a liquidity pool. Price is determined by the reserve ratio, not by matching orders.
+A constant-product market maker (x*y=k). No order book — traders swap against a liquidity pool. Price is determined by the reserve ratio, not by matching orders. This models [Uniswap v2](https://docs.uniswap.org/contracts/v2/overview) and its forks (SushiSwap, PancakeSwap). Related designs include [Curve](https://curve.fi/) (StableSwap invariant) and [Balancer](https://balancer.fi/) (generalized weighted pools).
 
 ```mermaid
 graph LR
@@ -127,6 +129,62 @@ Traders swap tokens against the pool. The output amount is computed from the con
 | PositiveReserves | Invariant | Pool reserves are always > 0 |
 | PositiveSwapOutput | Invariant | Every swap produces output > 0 |
 | ConservationOfTokens | Invariant | Total tokens in system (pool + all traders) is constant |
+
+### DecentralizedCLOB
+
+Multiple nodes each maintain independent order books. Orders are submitted to a global pool and delivered to nodes in nondeterministic order — modeling network propagation delay. Each node runs the same price-time priority matching engine as `CentralizedCLOB`. This models on-chain order books like [Serum/OpenBook](https://www.openbook-solana.com/) (Solana), [dYdX v4](https://dydx.exchange/) (Cosmos app-chain where validators run matching), [Hyperliquid](https://hyperliquid.xyz/) (L1 with on-chain order book), and [Injective](https://injective.com/) (Cosmos chain).
+
+```mermaid
+graph LR
+    subgraph Global Pool
+        OP[Submitted Orders]
+    end
+
+    OP -- "order i" --> N1
+    OP -- "order j" --> N1
+    OP -- "order j" --> N2
+    OP -- "order i" --> N2
+
+    subgraph N1["Node 1"]
+        direction TB
+        BB1[Buy Book] --> ME1{Match}
+        SB1[Sell Book] --> ME1
+        ME1 --> T1[Trades]
+    end
+
+    subgraph N2["Node 2"]
+        direction TB
+        BB2[Buy Book] --> ME2{Match}
+        SB2[Sell Book] --> ME2
+        ME2 --> T2[Trades]
+    end
+
+    T1 -.- D["Different delivery order<br/>→ different trades"]
+    T2 -.- D
+
+    style D fill:#fee
+```
+
+The core problem: without consensus on ordering, different nodes process the same orders in different sequences and **arrive at different results**. TLC proves this is not just a theoretical concern — it finds concrete traces where the same set of orders produces different trades (or no trades at all) at different nodes.
+
+- **Per-node matching**: same CLOB logic (price-time priority, ask price execution)
+- **Nondeterministic delivery**: any node can receive any unprocessed order next
+- **Self-trade interaction**: delivery order determines which orders get priority, and self-trade prevention can block matches that would succeed in a different sequence
+
+**Verified properties (per-node correctness):**
+| Property | Type | Description |
+|---|---|---|
+| PositiveBookQuantities | Invariant | Every resting order on every node has quantity > 0 |
+| PositiveTradeQuantities | Invariant | Every trade at every node has quantity > 0 |
+| PriceImprovement | Invariant | Price improvement holds at every node |
+| NoSelfTrades | Invariant | No self-trades at any node |
+
+**Consensus properties (expected to fail — add as INVARIANT to see counterexamples):**
+| Property | Description |
+|---|---|
+| ConsensusOnTrades | After all orders delivered and matched, all nodes have identical trade logs |
+| ConsensusOnPrices | All nodes agree on the set of trade prices |
+| ConsensusOnVolume | All nodes agree on the number of trades |
 
 ## Comparison
 
@@ -170,19 +228,21 @@ graph TB
 
 The key structural differences, verified by TLC:
 
-| Property | CentralizedCLOB | BatchedAuction | AMM |
-|---|---|---|---|
-| Uniform pricing | No | Yes (verified) | No |
-| Ordering independence | No (price-time priority) | Yes (verified) | No (price impact) |
-| Spread arbitrage possible | Yes | No (uniform price) | Yes (price impact) |
-| Always-available liquidity | No (book can be empty) | No (batch can be empty) | Yes (verified) |
-| Price improvement | Yes (verified) | Yes (verified) | N/A (no limit prices) |
-| Constant product (k) | N/A | N/A | Yes (verified) |
-| Conservation | Yes (verified) | Yes (verified) | Yes (verified) |
+| Property | CentralizedCLOB | DecentralizedCLOB | BatchedAuction | AMM |
+|---|---|---|---|---|
+| Uniform pricing | No | No | Yes (verified) | No |
+| Ordering independence | No (price-time priority) | No (delivery order) | Yes (verified) | No (price impact) |
+| Cross-node consensus | N/A (single node) | No (TLC counterexample) | Yes (ordering independence) | N/A (single pool) |
+| Spread arbitrage possible | Yes | Yes | No (uniform price) | Yes (price impact) |
+| Always-available liquidity | No (book can be empty) | No (book can be empty) | No (batch can be empty) | Yes (verified) |
+| Price improvement | Yes (verified) | Yes (per-node, verified) | Yes (verified) | N/A (no limit prices) |
+| Constant product (k) | N/A | N/A | N/A | Yes (verified) |
+| Conservation | Yes (verified) | Yes (per-node) | Yes (verified) | Yes (verified) |
 
 To see counterexamples:
 - **CLOB non-uniform pricing**: add `INVARIANT AllTradesSamePrice` to `CentralizedCLOB.cfg` (with `MaxTime = 4`, `MaxOrders = 4`)
 - **AMM non-uniform pricing**: add `INVARIANT AllSwapsSamePrice` to `AMM.cfg` (with `MaxTime = 4`)
+- **Decentralized CLOB divergence**: add `INVARIANT ConsensusOnTrades` (or `ConsensusOnPrices`, `ConsensusOnVolume`) to `DecentralizedCLOB.cfg`
 
 ## Conclusions
 
@@ -194,13 +254,15 @@ graph TD
     L["Liquidity<br/>(always available)"]
     I["Immediacy<br/>(instant execution, price improvement)"]
 
-    F --- BA["BatchedAuction<br/>✓ Uniform pricing<br/>✓ No spread arbitrage<br/>✓ Ordering independence<br/>✗ No always-on liquidity<br/>✗ Must wait for batch"]
+    F --- BA["BatchedAuction<br/>✓ Uniform pricing<br/>✓ No spread arbitrage<br/>✓ Ordering independence<br/>✓ Safe to decentralize<br/>✗ No always-on liquidity<br/>✗ Must wait for batch"]
     L --- AMM_N["AMM<br/>✓ Always-available liquidity<br/>✓ Constant product guaranteed<br/>✗ Price impact per swap<br/>✗ Non-uniform pricing<br/>✗ Ordering dependent"]
     I --- CLOB_N["CentralizedCLOB<br/>✓ Immediate matching<br/>✓ Price improvement<br/>✗ Non-uniform pricing<br/>✗ Ordering dependent<br/>✗ Liquidity depends on book"]
+    I --- DCLOB_N["DecentralizedCLOB<br/>✓ Immediate matching (per-node)<br/>✓ Price improvement (per-node)<br/>✗ No cross-node consensus<br/>✗ Delivery order changes outcomes<br/>✗ Requires sequencer/consensus"]
 
     style BA fill:#efe
     style AMM_N fill:#eef
     style CLOB_N fill:#fee
+    style DCLOB_N fill:#fdd
 ```
 
 **What TLC proves (not just argues):**
@@ -209,12 +271,16 @@ graph TD
 |---|---|
 | Batched auctions eliminate spread arbitrage | `NoSpreadArbitrage` and `UniformClearingPrice` hold across all reachable states |
 | Submission order cannot affect batch outcomes | `OrderingIndependence` verified — same orders in any sequence produce same clearing price |
+| Batch auctions are safe to decentralize | `OrderingIndependence` means validators only need consensus on the order **set**, not sequence (Penumbra, CoW Protocol) |
 | CLOBs produce different prices for the same set of orders | TLC counterexample: two trades at prices 1 and 2 from identical order set |
+| Decentralizing a CLOB breaks consensus | TLC counterexample: same orders delivered in different sequence → one node executes a trade, the other executes none |
 | AMM price depends on swap ordering and size | TLC counterexample: same input amounts yield different output amounts depending on reserve state |
 | AMM liquidity never runs out | `PositiveReserves` + `PositiveSwapOutput` hold in all states — swaps always succeed |
-| All three mechanisms conserve assets | `ConservationOfAssets` / `ConservationOfTokens` verified for each |
+| All four mechanisms conserve assets (per-node) | `ConservationOfAssets` / `ConservationOfTokens` verified for each |
 
 **The impossibility triangle:** a mechanism that clears at a uniform price (fairness) must collect orders before clearing, sacrificing immediacy. A mechanism that always has liquidity (AMM) must price algorithmically, creating price impact that depends on ordering. A mechanism that matches immediately (CLOB) exposes different prices to different participants, enabling spread arbitrage. These are structural constraints, not implementation choices — they follow from the definitions of the mechanisms themselves.
+
+**Centralization vs decentralization:** the DecentralizedCLOB spec shows that continuous matching is fundamentally order-dependent — decentralizing it without consensus on transaction ordering leads to divergent state across nodes. This is why real-world decentralized CLOBs (dYdX v4, Hyperliquid) run their own chains with a single sequencer or validator-based consensus to impose a total order. Batched auctions avoid this problem entirely because clearing is order-independent.
 
 ## Shared
 
@@ -232,14 +298,26 @@ Requires Java and [tla2tools.jar](https://github.com/tlaplus/tlaplus/releases). 
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC CentralizedCLOB -config CentralizedCLOB.cfg -modelcheck
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC BatchedAuction -config BatchedAuction.cfg -modelcheck
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC AMM -config AMM.cfg -modelcheck
+java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC DecentralizedCLOB -config DecentralizedCLOB.cfg -modelcheck
 ```
 
 Or use the [TLA+ VS Code extension](https://marketplace.visualstudio.com/items?itemName=tlaplus.vscode-tlaplus).
 
+## References
+
+| Mechanism | Real-world systems |
+|---|---|
+| CentralizedCLOB | NYSE, NASDAQ, CME, Binance, Coinbase |
+| BatchedAuction | [Penumbra](https://penumbra.zone/), [CoW Protocol](https://cow.fi/), NYSE/NASDAQ opening & closing auctions |
+| AMM | [Uniswap v2](https://docs.uniswap.org/contracts/v2/overview), SushiSwap, PancakeSwap, [Curve](https://curve.fi/), [Balancer](https://balancer.fi/) |
+| DecentralizedCLOB | [Serum/OpenBook](https://www.openbook-solana.com/), [dYdX v4](https://dydx.exchange/), [Hyperliquid](https://hyperliquid.xyz/), [Injective](https://injective.com/) |
+
+**Academic:**
+- Budish, Cramton, Shim — "[The High-Frequency Trading Arms Race](https://faculty.chicagobooth.edu/eric.budish/research/HFT-FrequentBatchAuctions.pdf)" (2015) — proposes frequent batch auctions to eliminate latency arbitrage
+
 ## Planned
 
 - **AMM sandwich attack traces** - model front-running and sandwich attacks against the AMM
-- **Decentralized CLOB** - multiple nodes, ordering ambiguity, consensus
-- **ZK Dark Pool** - verifiable private matching, encrypted order visibility
+- **ZK Dark Pool** - verifiable private matching, encrypted order visibility (related: Penumbra's shielded batch auctions)
 - Privacy/visibility model across all mechanisms
 - Adversarial conditions and manipulation resistance analysis
