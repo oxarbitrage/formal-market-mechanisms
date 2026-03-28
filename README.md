@@ -130,6 +130,46 @@ Traders swap tokens against the pool. The output amount is computed from the con
 | PositiveSwapOutput | Invariant | Every swap produces output > 0 |
 | ConservationOfTokens | Invariant | Total tokens in system (pool + all traders) is constant |
 
+### ImpermanentLoss
+
+Models the economic risk for liquidity providers (LPs) in a constant-product AMM. An LP deposits tokens into the pool, external traders swap against it (moving the price), and the LP's position is compared to simply holding the original tokens. This is the fundamental risk of providing liquidity on [Uniswap](https://docs.uniswap.org/contracts/v2/concepts/advanced-topics/understanding-returns), and why protocols offer "liquidity mining" rewards to compensate LPs.
+
+```mermaid
+sequenceDiagram
+    participant LP as Liquidity Provider
+    participant P as AMM Pool
+    participant T as External Trader
+
+    LP->>P: deposit 100A + 100B
+    Note over P: reserves: 100A / 100B<br/>k = 10,000
+
+    T->>P: swap 8A → B
+    Note over P: reserves: 108A / 93B<br/>k = 10,044 (fees grew k)
+
+    LP->>P: withdraw all
+    P->>LP: gets 108A + 93B
+
+    Note over LP: LP has: 108A + 93B<br/>Hold would be: 100A + 100B<br/>At current price (93/108):<br/>LP value = 186.0B<br/>Hold value = 186.1B<br/>IL = 0.1B lost
+```
+
+The loss follows from the AM-GM inequality: any change in the price ratio causes the LP's position to underperform holding, even though fees grow the pool (k increases). The loss is "impermanent" because it disappears if the price returns to the original ratio — the LP keeps the fee income.
+
+- **LP deposits**: creates the pool with initial reserves
+- **External swaps**: move the price ratio, causing IL
+- **Fee income**: k grows with every swap (0.3% fee), partially compensating IL
+- **AM-GM inequality**: `2 * reserveA * reserveB < InitReserveA * reserveB + InitReserveB * reserveA` whenever the price ratio changes
+
+**Verified properties (pool correctness):**
+| Property | Type | Description |
+|---|---|---|
+| PositiveReserves | Invariant | Pool reserves always > 0 |
+| ConstantProductInvariant | Invariant | `reserveA * reserveB >= initial k` (fees grow k) |
+
+**IL property (expected to fail — add as INVARIANT to see counterexample):**
+| Property | Description |
+|---|---|
+| NoImpermanentLoss | LP's withdrawal value >= holding value at current price (FAILS: one swap of 8A causes IL despite fee income) |
+
 ### SandwichAttack
 
 Models the canonical [MEV](https://ethereum.org/en/developers/docs/mev/) (Maximal Extractable Value) attack against a constant-product AMM. An adversary who controls transaction ordering (block builder, sequencer) can extract value from other traders by sandwiching their swaps. This is the primary attack vector against AMMs like Uniswap, and the main motivation behind MEV-resistant designs like [Flashbots](https://www.flashbots.net/), [Penumbra](https://penumbra.zone/), and [CoW Protocol](https://cow.fi/).
@@ -295,6 +335,7 @@ The key structural differences, verified by TLC:
 | Sandwich attack resistant | N/A (off-chain) | No (ordering power) | Yes (uniform price) | No (TLC counterexample) |
 | Always-available liquidity | No (book can be empty) | No (book can be empty) | No (batch can be empty) | Yes (verified) |
 | Price improvement | Yes (verified) | Yes (per-node, verified) | Yes (verified) | N/A (no limit prices) |
+| LP impermanent loss | N/A | N/A | N/A | Yes (TLC counterexample) |
 | Constant product (k) | N/A | N/A | N/A | Yes (verified) |
 | Conservation | Yes (verified) | Yes (per-node) | Yes (verified) | Yes (verified) |
 
@@ -303,6 +344,7 @@ To see counterexamples:
 - **AMM non-uniform pricing**: add `INVARIANT AllSwapsSamePrice` to `AMM.cfg` (with `MaxTime = 4`)
 - **Decentralized CLOB divergence**: add `INVARIANT ConsensusOnTrades` (or `ConsensusOnPrices`, `ConsensusOnVolume`) to `DecentralizedCLOB.cfg`
 - **Sandwich attack**: add `INVARIANT NoPriceDegradation` or `INVARIANT NoAdversaryProfit` to `SandwichAttack.cfg`
+- **Impermanent loss**: add `INVARIANT NoImpermanentLoss` to `ImpermanentLoss.cfg`
 
 ## Conclusions
 
@@ -337,6 +379,7 @@ graph TD
 | AMM price depends on swap ordering and size | TLC counterexample: same input amounts yield different output amounts depending on reserve state |
 | AMMs are vulnerable to sandwich attacks | TLC counterexample: adversary extracts 1A profit while victim loses 2B (22% worse output) |
 | Batch auctions resist sandwich attacks | `OrderingIndependence` + `UniformClearingPrice` — no price to move between trades |
+| AMM LPs face impermanent loss from any price movement | TLC counterexample: single swap of 8A causes IL despite fees growing k from 10,000 to 10,044 |
 | AMM liquidity never runs out | `PositiveReserves` + `PositiveSwapOutput` hold in all states — swaps always succeed |
 | All four mechanisms conserve assets (per-node) | `ConservationOfAssets` / `ConservationOfTokens` verified for each |
 
@@ -362,6 +405,7 @@ java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC BatchedAuction -config BatchedAuc
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC AMM -config AMM.cfg -modelcheck
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC DecentralizedCLOB -config DecentralizedCLOB.cfg -modelcheck
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC SandwichAttack -config SandwichAttack.cfg -modelcheck
+java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC ImpermanentLoss -config ImpermanentLoss.cfg -modelcheck
 ```
 
 Or use the [TLA+ VS Code extension](https://marketplace.visualstudio.com/items?itemName=tlaplus.vscode-tlaplus).
@@ -380,7 +424,6 @@ Or use the [TLA+ VS Code extension](https://marketplace.visualstudio.com/items?i
 
 ## Planned
 
-- **Impermanent loss** - LP deposits into AMM, price moves, LP withdraws worse off than holding
 - **Cross-venue arbitrage** - two mechanisms (CLOB+AMM or CLOB+CLOB) with an arbitrageur agent, price convergence, productive vs extractive MEV
 - **ZK Dark Pool** - verifiable private matching, encrypted order visibility (related: Penumbra's shielded batch auctions)
 - Privacy/visibility model across all mechanisms
