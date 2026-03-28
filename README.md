@@ -380,6 +380,8 @@ Or use the [TLA+ VS Code extension](https://marketplace.visualstudio.com/items?i
 
 ## Planned
 
+- **Impermanent loss** - LP deposits into AMM, price moves, LP withdraws worse off than holding
+- **Cross-venue arbitrage** - two mechanisms (CLOB+AMM or CLOB+CLOB) with an arbitrageur agent, price convergence, productive vs extractive MEV
 - **ZK Dark Pool** - verifiable private matching, encrypted order visibility (related: Penumbra's shielded batch auctions)
 - Privacy/visibility model across all mechanisms
 - Adversarial conditions and manipulation resistance analysis
