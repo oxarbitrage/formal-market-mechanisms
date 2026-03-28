@@ -219,6 +219,48 @@ The attack works because AMM pricing is **path-dependent**: the adversary's fron
 | NoPriceDegradation | Victim gets at least as much output as without the attack (FAILS: 7B vs 9B baseline) |
 | NoAdversaryProfit | Adversary does not end up with more tokens than they started (FAILS: spent 9A, got back 10A) |
 
+### FrontRunning
+
+Models front-running on a CLOB — the CLOB analog of `SandwichAttack` (which targets AMMs). An adversary who controls transaction ordering consumes cheap sell-side liquidity before a victim's buy order, forcing the victim to fill at worse prices. This models HFT latency arbitrage, block builder front-running, and validator front-running in on-chain CLOBs like [dYdX](https://dydx.exchange/) and [Serum/OpenBook](https://www.openbook-solana.com/).
+
+```mermaid
+sequenceDiagram
+    participant A as Adversary
+    participant Book as CLOB Sell Book
+    participant V as Victim
+
+    Note over Book: sell 2 units @ 10<br/>sell 3 units @ 15
+
+    V-->>Book: pending: buy 3 units
+    Note over A: sees victim's pending order
+
+    A->>Book: 1. Front-run: buy 1 @ 10
+    Note over Book: remaining: 1 @ 10, 3 @ 15<br/>(cheap liquidity consumed)
+
+    V->>Book: 2. Victim buys 3 units
+    Book->>V: fills: 1 @ 10, 2 @ 15 = 40
+    Note over V: would have paid: 2@10 + 1@15 = 35<br/>degradation: +5 (14% worse)
+
+    Note over A: bought 1 unit at 10<br/>market now at ~13.3<br/>profit ≈ 3.3 per unit
+```
+
+Both AMM sandwiching and CLOB front-running exploit ordering power, but through different mechanisms:
+- **AMM sandwich**: adversary shifts the price curve with their own swap
+- **CLOB front-run**: adversary depletes cheap resting orders from the book
+
+Both are structurally impossible in `BatchedAuction`/`ZKDarkPool` due to `OrderingIndependence`.
+
+**Verified properties:**
+| Property | Type | Description |
+|---|---|---|
+| VictimFullyFilled | Invariant | Victim always gets their full order filled (enough book liquidity) |
+
+**Attack properties (expected to fail — add as INVARIANT to see counterexamples):**
+| Property | Description |
+|---|---|
+| NoPriceDegradation | Victim pays no more than without front-running (FAILS: pays 40 vs 35 baseline = +14%) |
+| NoAdversaryProfit | Adversary cannot profit from information advantage (FAILS: bought at 10, market at ~13.3) |
+
 ### CrossVenueArbitrage
 
 Models arbitrage between a CLOB and an AMM trading the same asset. When prices diverge, an arbitrageur buys on the cheap venue and sells on the expensive one, profiting from the difference. Unlike sandwich attacks, this is "productive" MEV — it aligns prices across venues. But the profit comes at the expense of the AMM LP (impermanent loss). This models the CEX/DEX arbitrage that dominates Ethereum MEV: bots like [Wintermute](https://www.wintermute.com/) and [Jump](https://www.jumptrading.com/) continuously arbitrage between centralized exchanges and on-chain AMMs.
@@ -451,6 +493,7 @@ The key structural differences, verified by TLC:
 | Ordering independence | No (price-time priority) | No (delivery order) | Yes (verified) | Yes (verified) | No (price impact) |
 | Cross-node consensus | N/A (single node) | No (TLC counterexample) | Yes (ordering independence) | Yes (ordering independence) | N/A (single pool) |
 | Spread arbitrage possible | Yes | Yes | No (uniform price) | No (uniform price) | Yes (price impact) |
+| Front-running resistant | No (TLC counterexample) | No (ordering power) | Yes (ordering independence) | Yes (ordering independence) | N/A (no order book) |
 | Sandwich attack resistant | N/A (off-chain) | No (ordering power) | Yes (uniform price) | Yes (verified: SandwichResistant) | No (TLC counterexample) |
 | Pre-trade privacy | No | No | No | Yes (sealed bids) | No |
 | Post-trade privacy | No | No | No | Yes (verified: orders destroyed) | No |
@@ -465,6 +508,7 @@ To see counterexamples:
 - **CLOB non-uniform pricing**: add `INVARIANT AllTradesSamePrice` to `CentralizedCLOB.cfg` (with `MaxTime = 4`, `MaxOrders = 4`)
 - **AMM non-uniform pricing**: add `INVARIANT AllSwapsSamePrice` to `AMM.cfg` (with `MaxTime = 4`)
 - **Decentralized CLOB divergence**: add `INVARIANT ConsensusOnTrades` (or `ConsensusOnPrices`, `ConsensusOnVolume`) to `DecentralizedCLOB.cfg`
+- **CLOB front-running**: add `INVARIANT NoPriceDegradation` or `INVARIANT NoAdversaryProfit` to `FrontRunning.cfg`
 - **Sandwich attack**: add `INVARIANT NoPriceDegradation` or `INVARIANT NoAdversaryProfit` to `SandwichAttack.cfg`
 - **Impermanent loss**: add `INVARIANT NoImpermanentLoss` to `ImpermanentLoss.cfg`
 - **Cross-venue arbitrage profit**: add `INVARIANT NoArbitrageProfit` or `INVARIANT NoLPValueLoss` to `CrossVenueArbitrage.cfg`
@@ -502,6 +546,7 @@ graph TD
 | CLOBs produce different prices for the same set of orders | TLC counterexample: two trades at prices 1 and 2 from identical order set |
 | Decentralizing a CLOB breaks consensus | TLC counterexample: same orders delivered in different sequence → one node executes a trade, the other executes none |
 | AMM price depends on swap ordering and size | TLC counterexample: same input amounts yield different output amounts depending on reserve state |
+| CLOBs are vulnerable to front-running | TLC counterexample: adversary buys 1 unit at 10, victim pays 40 instead of 35 (14% degradation); adversary profits from buying below market |
 | AMMs are vulnerable to sandwich attacks | TLC counterexample: adversary extracts 1A profit while victim loses 2B (22% worse output) |
 | Batch auctions resist sandwich attacks | `OrderingIndependence` + `UniformClearingPrice` — no price to move between trades |
 | AMM LPs face impermanent loss from any price movement | TLC counterexample: single swap of 8A causes IL despite fees growing k from 10,000 to 10,044 |
@@ -535,6 +580,7 @@ java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC CentralizedCLOB -config Centraliz
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC BatchedAuction -config BatchedAuction.cfg -modelcheck
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC AMM -config AMM.cfg -modelcheck
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC DecentralizedCLOB -config DecentralizedCLOB.cfg -modelcheck
+java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC FrontRunning -config FrontRunning.cfg -modelcheck
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC SandwichAttack -config SandwichAttack.cfg -modelcheck
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC ImpermanentLoss -config ImpermanentLoss.cfg -modelcheck
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC CrossVenueArbitrage -config CrossVenueArbitrage.cfg -modelcheck
