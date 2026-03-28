@@ -219,6 +219,58 @@ The attack works because AMM pricing is **path-dependent**: the adversary's fron
 | NoPriceDegradation | Victim gets at least as much output as without the attack (FAILS: 7B vs 9B baseline) |
 | NoAdversaryProfit | Adversary does not end up with more tokens than they started (FAILS: spent 9A, got back 10A) |
 
+### CrossVenueArbitrage
+
+Models arbitrage between a CLOB and an AMM trading the same asset. When prices diverge, an arbitrageur buys on the cheap venue and sells on the expensive one, profiting from the difference. Unlike sandwich attacks, this is "productive" MEV — it aligns prices across venues. But the profit comes at the expense of the AMM LP (impermanent loss). This models the CEX/DEX arbitrage that dominates Ethereum MEV: bots like [Wintermute](https://www.wintermute.com/) and [Jump](https://www.jumptrading.com/) continuously arbitrage between centralized exchanges and on-chain AMMs.
+
+```mermaid
+sequenceDiagram
+    participant C as CLOB<br/>(ask = 5B per A)
+    participant Arb as Arbitrageur
+    participant A as AMM Pool<br/>(price ≈ 10B per A)
+
+    Note over Arb: sees price divergence:<br/>CLOB ask (5) < AMM price (10)
+
+    Arb->>C: buy 1A for 5B
+    Arb->>A: swap 1A → B
+    A->>Arb: gets 9B
+    Note over Arb: profit: 9 - 5 = 4B
+
+    Note over A: reserves: (10,100) → (11,91)<br/>price dropped from 10 to 8.3<br/>LP lost value (IL)
+
+    Arb->>C: buy 1A for 5B
+    Arb->>A: swap 1A → B
+    A->>Arb: gets 7B
+    Note over Arb: profit: 7 - 5 = 2B
+
+    Arb->>C: buy 1A for 5B
+    Arb->>A: swap 1A → B
+    A->>Arb: gets 6B
+    Note over Arb: profit: 6 - 5 = 1B
+
+    Note over A: reserves: (13,78)<br/>price ≈ 6 (converged toward CLOB)<br/>total arb profit: 7B<br/>LP bears the cost
+```
+
+The arbitrageur keeps trading until the AMM price converges to the CLOB range — at which point no more profit is available. TLC verifies that the price always moves in the right direction (`PriceNotDiverging` holds).
+
+- **Atomic trades**: arb buys A on CLOB and sells A on AMM in one step (or vice versa)
+- **Two directions**: buy CLOB/sell AMM (when AMM price > CLOB ask) or buy AMM/sell CLOB (when AMM price < CLOB bid)
+- **Price convergence**: each arb trade pushes AMM price toward CLOB range (verified)
+- **LP cost**: arbitrage-driven trades cause impermanent loss for the AMM LP (same AM-GM formula)
+
+**Verified properties:**
+| Property | Type | Description |
+|---|---|---|
+| PositiveReserves | Invariant | AMM reserves always > 0 |
+| ConstantProductInvariant | Invariant | `reserveA * reserveB >= initial k` |
+| PriceNotDiverging | Invariant | Arbitrage always pushes AMM price toward CLOB range, never away |
+
+**Arbitrage properties (expected to fail — add as INVARIANT to see counterexamples):**
+| Property | Description |
+|---|---|
+| NoArbitrageProfit | Arbitrageur does not profit (FAILS: buys 1A for 5B on CLOB, sells on AMM for 9B = +4B profit) |
+| NoLPValueLoss | AMM LP value is not harmed (FAILS: arb trades cause IL, same formula as ImpermanentLoss) |
+
 ### DecentralizedCLOB
 
 Multiple nodes each maintain independent order books. Orders are submitted to a global pool and delivered to nodes in nondeterministic order — modeling network propagation delay. Each node runs the same price-time priority matching engine as `CentralizedCLOB`. This models on-chain order books like [Serum/OpenBook](https://www.openbook-solana.com/) (Solana), [dYdX v4](https://dydx.exchange/) (Cosmos app-chain where validators run matching), [Hyperliquid](https://hyperliquid.xyz/) (L1 with on-chain order book), and [Injective](https://injective.com/) (Cosmos chain).
@@ -335,6 +387,7 @@ The key structural differences, verified by TLC:
 | Sandwich attack resistant | N/A (off-chain) | No (ordering power) | Yes (uniform price) | No (TLC counterexample) |
 | Always-available liquidity | No (book can be empty) | No (book can be empty) | No (batch can be empty) | Yes (verified) |
 | Price improvement | Yes (verified) | Yes (per-node, verified) | Yes (verified) | N/A (no limit prices) |
+| Cross-venue arbitrage | Source venue | Source venue | Resistant (uniform price) | Target venue (LP bears cost) |
 | LP impermanent loss | N/A | N/A | N/A | Yes (TLC counterexample) |
 | Constant product (k) | N/A | N/A | N/A | Yes (verified) |
 | Conservation | Yes (verified) | Yes (per-node) | Yes (verified) | Yes (verified) |
@@ -345,6 +398,7 @@ To see counterexamples:
 - **Decentralized CLOB divergence**: add `INVARIANT ConsensusOnTrades` (or `ConsensusOnPrices`, `ConsensusOnVolume`) to `DecentralizedCLOB.cfg`
 - **Sandwich attack**: add `INVARIANT NoPriceDegradation` or `INVARIANT NoAdversaryProfit` to `SandwichAttack.cfg`
 - **Impermanent loss**: add `INVARIANT NoImpermanentLoss` to `ImpermanentLoss.cfg`
+- **Cross-venue arbitrage profit**: add `INVARIANT NoArbitrageProfit` or `INVARIANT NoLPValueLoss` to `CrossVenueArbitrage.cfg`
 
 ## Conclusions
 
@@ -380,6 +434,7 @@ graph TD
 | AMMs are vulnerable to sandwich attacks | TLC counterexample: adversary extracts 1A profit while victim loses 2B (22% worse output) |
 | Batch auctions resist sandwich attacks | `OrderingIndependence` + `UniformClearingPrice` — no price to move between trades |
 | AMM LPs face impermanent loss from any price movement | TLC counterexample: single swap of 8A causes IL despite fees growing k from 10,000 to 10,044 |
+| Cross-venue arbitrage profits at LP's expense | TLC counterexample: arb buys A on CLOB for 5B, sells on AMM for 9B; LP bears the IL. Price converges (verified: `PriceNotDiverging`) |
 | AMM liquidity never runs out | `PositiveReserves` + `PositiveSwapOutput` hold in all states — swaps always succeed |
 | All four mechanisms conserve assets (per-node) | `ConservationOfAssets` / `ConservationOfTokens` verified for each |
 
@@ -406,6 +461,7 @@ java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC AMM -config AMM.cfg -modelcheck
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC DecentralizedCLOB -config DecentralizedCLOB.cfg -modelcheck
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC SandwichAttack -config SandwichAttack.cfg -modelcheck
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC ImpermanentLoss -config ImpermanentLoss.cfg -modelcheck
+java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC CrossVenueArbitrage -config CrossVenueArbitrage.cfg -modelcheck
 ```
 
 Or use the [TLA+ VS Code extension](https://marketplace.visualstudio.com/items?itemName=tlaplus.vscode-tlaplus).
@@ -424,7 +480,8 @@ Or use the [TLA+ VS Code extension](https://marketplace.visualstudio.com/items?i
 
 ## Planned
 
-- **Cross-venue arbitrage** - two mechanisms (CLOB+AMM or CLOB+CLOB) with an arbitrageur agent, price convergence, productive vs extractive MEV
+- **CLOB+CLOB arbitrage** - cross-venue latency arbitrage between two CLOBs, the arms race that Budish et al. argue batch auctions eliminate
+- **Triangular arbitrage** - A→B→C→A price cycles within a single venue, multi-asset extension
 - **ZK Dark Pool** - verifiable private matching, encrypted order visibility (related: Penumbra's shielded batch auctions)
 - Privacy/visibility model across all mechanisms
 - Adversarial conditions and manipulation resistance analysis
