@@ -271,6 +271,61 @@ The arbitrageur keeps trading until the AMM price converges to the CLOB range �
 | NoArbitrageProfit | Arbitrageur does not profit (FAILS: buys 1A for 5B on CLOB, sells on AMM for 9B = +4B profit) |
 | NoLPValueLoss | AMM LP value is not harmed (FAILS: arb trades cause IL, same formula as ImpermanentLoss) |
 
+### ZKDarkPool
+
+A sealed-bid batch auction with commit-reveal protocol. Combines `BatchedAuction` clearing with pre-trade and post-trade privacy to structurally eliminate MEV. This models privacy-preserving DEXs like [Penumbra](https://penumbra.zone/) (sealed-bid batch auctions with shielded transactions on Cosmos), [Renegade](https://renegade.fi/) (MPC-based dark pool for on-chain private matching), and partially [MEV Blocker](https://mevblocker.io/) / [MEV Share](https://docs.flashbots.net/flashbots-mev-share/overview) (encrypted mempools).
+
+```mermaid
+sequenceDiagram
+    participant T1 as Trader 1
+    participant T2 as Trader 2
+    participant DP as Dark Pool
+    participant ZK as ZK Verifier
+
+    Note over DP: Phase 1: COMMIT
+
+    T1->>DP: sealed buy order (hidden)
+    T2->>DP: sealed sell order (hidden)
+    Note over T1,T2: Orders invisible to each other<br/>(cryptographic commitments)
+
+    Note over DP: Phase 2: CLEAR
+
+    DP->>DP: reveal & clear at uniform price
+    DP->>ZK: prove clearing correctness
+    ZK->>DP: ✓ valid
+
+    Note over DP: Phase 3: DONE
+
+    DP->>DP: destroy individual orders
+    DP->>T1: your fill: qty @ clearing price
+    DP->>T2: your fill: qty @ clearing price
+
+    Note over T1,T2: Only clearing price + fills retained<br/>Individual orders destroyed (post-trade privacy)
+```
+
+Three phases enforce privacy structurally:
+1. **Commit**: traders submit sealed orders — no visibility of others' orders (modeled as nondeterministic choice independent of other orders)
+2. **Clear**: orders revealed, uniform-price batch clearing (same algorithm as `BatchedAuction`)
+3. **Done**: individual orders destroyed, only clearing price + fills retained (ZK proofs verify correctness)
+
+- **Pre-trade privacy**: order contents hidden during commit phase
+- **Commitment binding**: orders cannot be modified after commit
+- **Post-trade privacy**: individual orders destroyed after clearing
+- **MEV elimination**: sealed bids + uniform price = zero spread to exploit = sandwich attacks impossible
+
+**Verified properties:**
+| Property | Type | Description |
+|---|---|---|
+| UniformClearingPrice | Invariant | All trades execute at the same clearing price |
+| PriceImprovement | Invariant | Trade price within both parties' limits |
+| PositiveTradeQuantities | Invariant | Every trade has quantity > 0 |
+| NoSelfTrades | Invariant | No trade has the same buyer and seller |
+| OrderingIndependence | Invariant | Clearing result is the same regardless of commit order |
+| NoSpreadArbitrage | Invariant | Zero spread within the batch — no price difference to exploit |
+| SandwichResistant | Invariant | Trader with both buy and sell fills gets the same price on both sides (zero profit from sandwich pattern) |
+| PostTradeOrdersDestroyed | Invariant | After clearing, individual orders are destroyed (only clearing price + fills retained) |
+| EventualClearing | Liveness | If the batch is ready to clear, it eventually clears |
+
 ### DecentralizedCLOB
 
 Multiple nodes each maintain independent order books. Orders are submitted to a global pool and delivered to nodes in nondeterministic order — modeling network propagation delay. Each node runs the same price-time priority matching engine as `CentralizedCLOB`. This models on-chain order books like [Serum/OpenBook](https://www.openbook-solana.com/) (Solana), [dYdX v4](https://dydx.exchange/) (Cosmos app-chain where validators run matching), [Hyperliquid](https://hyperliquid.xyz/) (L1 with on-chain order book), and [Injective](https://injective.com/) (Cosmos chain).
@@ -340,6 +395,7 @@ graph TB
     O --> CLOB
     O --> DCLOB
     O --> Batch
+    O --> ZK
     O --> AMM
 
     subgraph CLOB["CentralizedCLOB"]
@@ -363,6 +419,14 @@ graph TB
         B1 --> BS["One uniform price<br/>No spread arbitrage"]
     end
 
+    subgraph ZK["ZKDarkPool"]
+        direction TB
+        ZK1["Sealed bids (hidden)"]
+        ZK2["Clearing price = 1<br/>(same as BatchedAuction)"]
+        ZK1 --> ZK2
+        ZK2 --> ZKS["Uniform price + privacy<br/>Orders destroyed after clearing<br/>Sandwich impossible"]
+    end
+
     subgraph AMM["AMM"]
         direction TB
         A1["Swap 1: 2A in, 1B out<br/>(effective price: 2)"]
@@ -373,24 +437,27 @@ graph TB
     style CS fill:#fee
     style DS fill:#fdd
     style BS fill:#efe
+    style ZKS fill:#dfd
     style AS fill:#fee
 ```
 
 The key structural differences, verified by TLC:
 
-| Property | CentralizedCLOB | DecentralizedCLOB | BatchedAuction | AMM |
-|---|---|---|---|---|
-| Uniform pricing | No | No | Yes (verified) | No |
-| Ordering independence | No (price-time priority) | No (delivery order) | Yes (verified) | No (price impact) |
-| Cross-node consensus | N/A (single node) | No (TLC counterexample) | Yes (ordering independence) | N/A (single pool) |
-| Spread arbitrage possible | Yes | Yes | No (uniform price) | Yes (price impact) |
-| Sandwich attack resistant | N/A (off-chain) | No (ordering power) | Yes (uniform price) | No (TLC counterexample) |
-| Always-available liquidity | No (book can be empty) | No (book can be empty) | No (batch can be empty) | Yes (verified) |
-| Price improvement | Yes (verified) | Yes (per-node, verified) | Yes (verified) | N/A (no limit prices) |
-| Cross-venue arbitrage | Source venue | Source venue | Resistant (uniform price) | Target venue (LP bears cost) |
-| LP impermanent loss | N/A | N/A | N/A | Yes (TLC counterexample) |
-| Constant product (k) | N/A | N/A | N/A | Yes (verified) |
-| Conservation | Yes (verified) | Yes (per-node) | Yes (verified) | Yes (verified) |
+| Property | CentralizedCLOB | DecentralizedCLOB | BatchedAuction | ZKDarkPool | AMM |
+|---|---|---|---|---|---|
+| Uniform pricing | No | No | Yes (verified) | Yes (verified) | No |
+| Ordering independence | No (price-time priority) | No (delivery order) | Yes (verified) | Yes (verified) | No (price impact) |
+| Cross-node consensus | N/A (single node) | No (TLC counterexample) | Yes (ordering independence) | Yes (ordering independence) | N/A (single pool) |
+| Spread arbitrage possible | Yes | Yes | No (uniform price) | No (uniform price) | Yes (price impact) |
+| Sandwich attack resistant | N/A (off-chain) | No (ordering power) | Yes (uniform price) | Yes (verified: SandwichResistant) | No (TLC counterexample) |
+| Pre-trade privacy | No | No | No | Yes (sealed bids) | No |
+| Post-trade privacy | No | No | No | Yes (verified: orders destroyed) | No |
+| Always-available liquidity | No (book can be empty) | No (book can be empty) | No (batch can be empty) | No (batch can be empty) | Yes (verified) |
+| Price improvement | Yes (verified) | Yes (per-node, verified) | Yes (verified) | Yes (verified) | N/A (no limit prices) |
+| Cross-venue arbitrage | Source venue | Source venue | Resistant (uniform price) | Resistant (uniform price + privacy) | Target venue (LP bears cost) |
+| LP impermanent loss | N/A | N/A | N/A | N/A | Yes (TLC counterexample) |
+| Constant product (k) | N/A | N/A | N/A | N/A | Yes (verified) |
+| Conservation | Yes (verified) | Yes (per-node) | Yes (verified) | Yes (verified) | Yes (verified) |
 
 To see counterexamples:
 - **CLOB non-uniform pricing**: add `INVARIANT AllTradesSamePrice` to `CentralizedCLOB.cfg` (with `MaxTime = 4`, `MaxOrders = 4`)
@@ -411,6 +478,7 @@ graph TD
     I["Immediacy<br/>(instant execution, price improvement)"]
 
     F --- BA["BatchedAuction<br/>✓ Uniform pricing<br/>✓ No spread arbitrage<br/>✓ Ordering independence<br/>✓ Safe to decentralize<br/>✗ No always-on liquidity<br/>✗ Must wait for batch"]
+    F --- ZKD["ZKDarkPool<br/>✓ All BatchedAuction properties<br/>✓ Pre-trade privacy (sealed bids)<br/>✓ Post-trade privacy (orders destroyed)<br/>✓ Sandwich resistant (verified)<br/>✗ No always-on liquidity<br/>✗ Must wait for batch"]
     L --- AMM_N["AMM<br/>✓ Always-available liquidity<br/>✓ Constant product guaranteed<br/>✗ Price impact per swap<br/>✗ Non-uniform pricing<br/>✗ Ordering dependent"]
     I --- CLOB_N["CentralizedCLOB<br/>✓ Immediate matching<br/>✓ Price improvement<br/>✗ Non-uniform pricing<br/>✗ Ordering dependent<br/>✗ Liquidity depends on book"]
     I --- DCLOB_N["DecentralizedCLOB<br/>✓ Immediate matching (per-node)<br/>✓ Price improvement (per-node)<br/>✗ No cross-node consensus<br/>✗ Delivery order changes outcomes<br/>✗ Requires sequencer/consensus"]
@@ -418,6 +486,7 @@ graph TD
     style BA fill:#efe
     style AMM_N fill:#eef
     style CLOB_N fill:#fee
+    style ZKD fill:#dfd
     style DCLOB_N fill:#fdd
 ```
 
@@ -435,10 +504,15 @@ graph TD
 | Batch auctions resist sandwich attacks | `OrderingIndependence` + `UniformClearingPrice` — no price to move between trades |
 | AMM LPs face impermanent loss from any price movement | TLC counterexample: single swap of 8A causes IL despite fees growing k from 10,000 to 10,044 |
 | Cross-venue arbitrage profits at LP's expense | TLC counterexample: arb buys A on CLOB for 5B, sells on AMM for 9B; LP bears the IL. Price converges (verified: `PriceNotDiverging`) |
+| ZK dark pools inherit all batch auction guarantees | `UniformClearingPrice`, `OrderingIndependence`, `NoSpreadArbitrage` all verified for ZKDarkPool (same clearing logic) |
+| Sealed bids + uniform price makes sandwich attacks provably impossible | `SandwichResistant` verified: any trader with both buy and sell fills gets the same price on both sides — zero profit from sandwich pattern |
+| Post-trade privacy is structurally enforced | `PostTradeOrdersDestroyed` verified: after clearing, `buyOrders = <<>>` and `sellOrders = <<>>` — individual orders are destroyed, only clearing price + fills retained |
 | AMM liquidity never runs out | `PositiveReserves` + `PositiveSwapOutput` hold in all states — swaps always succeed |
 | All four mechanisms conserve assets (per-node) | `ConservationOfAssets` / `ConservationOfTokens` verified for each |
 
 **The impossibility triangle:** a mechanism that clears at a uniform price (fairness) must collect orders before clearing, sacrificing immediacy. A mechanism that always has liquidity (AMM) must price algorithmically, creating price impact that depends on ordering. A mechanism that matches immediately (CLOB) exposes different prices to different participants, enabling spread arbitrage. These are structural constraints, not implementation choices — they follow from the definitions of the mechanisms themselves.
+
+**Privacy as MEV resistance:** the ZKDarkPool spec demonstrates that adding privacy (sealed bids + post-trade order destruction) to a batch auction doesn't change any correctness property — all `BatchedAuction` invariants carry over — but adds a new dimension: MEV elimination through information hiding. The `SandwichResistant` invariant proves that the sandwich attack pattern (which succeeds against AMMs in `SandwichAttack.tla`) is structurally impossible when orders are sealed and cleared at a uniform price. Privacy is not just a feature — it's a mechanism design tool that eliminates the information asymmetry attackers need.
 
 **Centralization vs decentralization:** the DecentralizedCLOB spec shows that continuous matching is fundamentally order-dependent — decentralizing it without consensus on transaction ordering leads to divergent state across nodes. This is why real-world decentralized CLOBs (dYdX v4, Hyperliquid) run their own chains with a single sequencer or validator-based consensus to impose a total order. Batched auctions avoid this problem entirely because clearing is order-independent.
 
@@ -462,6 +536,7 @@ java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC DecentralizedCLOB -config Decentr
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC SandwichAttack -config SandwichAttack.cfg -modelcheck
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC ImpermanentLoss -config ImpermanentLoss.cfg -modelcheck
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC CrossVenueArbitrage -config CrossVenueArbitrage.cfg -modelcheck
+java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC ZKDarkPool -config ZKDarkPool.cfg -modelcheck
 ```
 
 Or use the [TLA+ VS Code extension](https://marketplace.visualstudio.com/items?itemName=tlaplus.vscode-tlaplus).
@@ -473,6 +548,7 @@ Or use the [TLA+ VS Code extension](https://marketplace.visualstudio.com/items?i
 | CentralizedCLOB | NYSE, NASDAQ, CME, Binance, Coinbase |
 | BatchedAuction | [Penumbra](https://penumbra.zone/), [CoW Protocol](https://cow.fi/), NYSE/NASDAQ opening & closing auctions |
 | AMM | [Uniswap v2](https://docs.uniswap.org/contracts/v2/overview), SushiSwap, PancakeSwap, [Curve](https://curve.fi/), [Balancer](https://balancer.fi/) |
+| ZKDarkPool | [Penumbra](https://penumbra.zone/), [Renegade](https://renegade.fi/), [MEV Blocker](https://mevblocker.io/), [MEV Share](https://docs.flashbots.net/flashbots-mev-share/overview) |
 | DecentralizedCLOB | [Serum/OpenBook](https://www.openbook-solana.com/), [dYdX v4](https://dydx.exchange/), [Hyperliquid](https://hyperliquid.xyz/), [Injective](https://injective.com/) |
 
 **Academic:**
@@ -482,6 +558,5 @@ Or use the [TLA+ VS Code extension](https://marketplace.visualstudio.com/items?i
 
 - **CLOB+CLOB arbitrage** - cross-venue latency arbitrage between two CLOBs, the arms race that Budish et al. argue batch auctions eliminate
 - **Triangular arbitrage** - A→B→C→A price cycles within a single venue, multi-asset extension
-- **ZK Dark Pool** - verifiable private matching, encrypted order visibility (related: Penumbra's shielded batch auctions)
-- Privacy/visibility model across all mechanisms
+- Privacy/visibility model across all mechanisms (extending ZKDarkPool's approach)
 - Adversarial conditions and manipulation resistance analysis
