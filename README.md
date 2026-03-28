@@ -130,6 +130,55 @@ Traders swap tokens against the pool. The output amount is computed from the con
 | PositiveSwapOutput | Invariant | Every swap produces output > 0 |
 | ConservationOfTokens | Invariant | Total tokens in system (pool + all traders) is constant |
 
+### SandwichAttack
+
+Models the canonical [MEV](https://ethereum.org/en/developers/docs/mev/) (Maximal Extractable Value) attack against a constant-product AMM. An adversary who controls transaction ordering (block builder, sequencer) can extract value from other traders by sandwiching their swaps. This is the primary attack vector against AMMs like Uniswap, and the main motivation behind MEV-resistant designs like [Flashbots](https://www.flashbots.net/), [Penumbra](https://penumbra.zone/), and [CoW Protocol](https://cow.fi/).
+
+```mermaid
+sequenceDiagram
+    participant A as Adversary
+    participant P as AMM Pool
+    participant V as Victim
+
+    Note over P: reserves: 100A / 100B
+    V-->>P: pending: swap 10A→B
+    Note over A: sees victim's pending tx
+
+    A->>P: 1. Front-run: swap 9A→B
+    Note over P: reserves: 109A / 92B<br/>(price of B pushed up)
+    P->>A: gets 8B
+
+    V->>P: 2. Victim swap: 10A→B
+    Note over P: reserves: 119A / 85B
+    P->>V: gets 7B (would have gotten 9B)
+
+    A->>P: 3. Back-run: swap 8B→A
+    Note over P: reserves: 109A / 93B
+    P->>A: gets 10A
+
+    Note over A: profit: spent 9A, got 10A = +1A
+    Note over V: loss: got 7B instead of 9B = -2B
+```
+
+The attack works because AMM pricing is **path-dependent**: the adversary's front-run changes the reserves, making the victim's swap execute at a worse rate. The adversary then converts back at the new favorable rate.
+
+- **Front-run**: adversary swaps in the same direction as victim, moving the price
+- **Victim swap**: executes at degraded price due to moved reserves
+- **Back-run**: adversary swaps in the opposite direction, capturing the spread
+- **Batch auction resistance**: `OrderingIndependence` + `UniformClearingPrice` make sandwiching impossible in BatchedAuction — there is no price to move between trades
+
+**Verified properties (pool correctness):**
+| Property | Type | Description |
+|---|---|---|
+| PositiveReserves | Invariant | Pool reserves always > 0 through the attack |
+| ConstantProductInvariant | Invariant | `reserveA * reserveB >= initial k` (fees still grow k) |
+
+**Attack properties (expected to fail — add as INVARIANT to see counterexamples):**
+| Property | Description |
+|---|---|
+| NoPriceDegradation | Victim gets at least as much output as without the attack (FAILS: 7B vs 9B baseline) |
+| NoAdversaryProfit | Adversary does not end up with more tokens than they started (FAILS: spent 9A, got back 10A) |
+
 ### DecentralizedCLOB
 
 Multiple nodes each maintain independent order books. Orders are submitted to a global pool and delivered to nodes in nondeterministic order — modeling network propagation delay. Each node runs the same price-time priority matching engine as `CentralizedCLOB`. This models on-chain order books like [Serum/OpenBook](https://www.openbook-solana.com/) (Solana), [dYdX v4](https://dydx.exchange/) (Cosmos app-chain where validators run matching), [Hyperliquid](https://hyperliquid.xyz/) (L1 with on-chain order book), and [Injective](https://injective.com/) (Cosmos chain).
@@ -243,6 +292,7 @@ The key structural differences, verified by TLC:
 | Ordering independence | No (price-time priority) | No (delivery order) | Yes (verified) | No (price impact) |
 | Cross-node consensus | N/A (single node) | No (TLC counterexample) | Yes (ordering independence) | N/A (single pool) |
 | Spread arbitrage possible | Yes | Yes | No (uniform price) | Yes (price impact) |
+| Sandwich attack resistant | N/A (off-chain) | No (ordering power) | Yes (uniform price) | No (TLC counterexample) |
 | Always-available liquidity | No (book can be empty) | No (book can be empty) | No (batch can be empty) | Yes (verified) |
 | Price improvement | Yes (verified) | Yes (per-node, verified) | Yes (verified) | N/A (no limit prices) |
 | Constant product (k) | N/A | N/A | N/A | Yes (verified) |
@@ -252,6 +302,7 @@ To see counterexamples:
 - **CLOB non-uniform pricing**: add `INVARIANT AllTradesSamePrice` to `CentralizedCLOB.cfg` (with `MaxTime = 4`, `MaxOrders = 4`)
 - **AMM non-uniform pricing**: add `INVARIANT AllSwapsSamePrice` to `AMM.cfg` (with `MaxTime = 4`)
 - **Decentralized CLOB divergence**: add `INVARIANT ConsensusOnTrades` (or `ConsensusOnPrices`, `ConsensusOnVolume`) to `DecentralizedCLOB.cfg`
+- **Sandwich attack**: add `INVARIANT NoPriceDegradation` or `INVARIANT NoAdversaryProfit` to `SandwichAttack.cfg`
 
 ## Conclusions
 
@@ -284,6 +335,8 @@ graph TD
 | CLOBs produce different prices for the same set of orders | TLC counterexample: two trades at prices 1 and 2 from identical order set |
 | Decentralizing a CLOB breaks consensus | TLC counterexample: same orders delivered in different sequence → one node executes a trade, the other executes none |
 | AMM price depends on swap ordering and size | TLC counterexample: same input amounts yield different output amounts depending on reserve state |
+| AMMs are vulnerable to sandwich attacks | TLC counterexample: adversary extracts 1A profit while victim loses 2B (22% worse output) |
+| Batch auctions resist sandwich attacks | `OrderingIndependence` + `UniformClearingPrice` — no price to move between trades |
 | AMM liquidity never runs out | `PositiveReserves` + `PositiveSwapOutput` hold in all states — swaps always succeed |
 | All four mechanisms conserve assets (per-node) | `ConservationOfAssets` / `ConservationOfTokens` verified for each |
 
@@ -308,6 +361,7 @@ java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC CentralizedCLOB -config Centraliz
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC BatchedAuction -config BatchedAuction.cfg -modelcheck
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC AMM -config AMM.cfg -modelcheck
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC DecentralizedCLOB -config DecentralizedCLOB.cfg -modelcheck
+java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC SandwichAttack -config SandwichAttack.cfg -modelcheck
 ```
 
 Or use the [TLA+ VS Code extension](https://marketplace.visualstudio.com/items?itemName=tlaplus.vscode-tlaplus).
@@ -326,7 +380,6 @@ Or use the [TLA+ VS Code extension](https://marketplace.visualstudio.com/items?i
 
 ## Planned
 
-- **AMM sandwich attack traces** - model front-running and sandwich attacks against the AMM
 - **ZK Dark Pool** - verifiable private matching, encrypted order visibility (related: Penumbra's shielded batch auctions)
 - Privacy/visibility model across all mechanisms
 - Adversarial conditions and manipulation resistance analysis
