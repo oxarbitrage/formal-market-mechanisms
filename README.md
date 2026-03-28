@@ -313,6 +313,53 @@ The arbitrageur keeps trading until the AMM price converges to the CLOB range �
 | NoArbitrageProfit | Arbitrageur does not profit (FAILS: buys 1A for 5B on CLOB, sells on AMM for 9B = +4B profit) |
 | NoLPValueLoss | AMM LP value is not harmed (FAILS: arb trades cause IL, same formula as ImpermanentLoss) |
 
+### WashTrading
+
+Models wash trading on an AMM: a manipulator trades with themselves (swap A→B then B→A) to inflate reported volume. On a CLOB, self-trade prevention blocks this. On an AMM, there is no counterparty identity — any address can swap. The manipulator loses only fees, but the volume appears genuine on-chain. Estimated 40-70% of DEX volume is wash trading, used to game token listings, airdrops, and liquidity mining rewards.
+
+```mermaid
+sequenceDiagram
+    participant M as Manipulator
+    participant P as AMM Pool
+
+    Note over P: reserves: 100A / 100B
+
+    M->>P: swap 10A → B
+    P->>M: gets 9B
+    Note over P: reserves: 110A / 91B<br/>volume: 10
+
+    M->>P: swap 9B → A
+    P->>M: gets 9A (lost 1A to fees)
+    Note over P: reserves: 101A / 100B<br/>volume: 19
+
+    Note over M: started: 30A, 0B<br/>now: 29A, 0B<br/>lost 1A (fees)<br/>but generated 19 units of "volume"
+
+    M->>P: swap 10A → B
+    P->>M: gets 9B
+    M->>P: swap 9B → A
+    P->>M: gets 9A
+
+    Note over M: 2 round-trips:<br/>lost ~2A in fees<br/>generated ~38 in volume<br/>volume/cost ratio ≈ 19x
+```
+
+- **No identity check**: AMM swaps are permissionless — anyone can trade, no STP
+- **Round-trip cost**: each cycle costs fees (k grows), but cost is small relative to volume generated
+- **CLOB resistance**: `NoSelfTrades` invariant in CentralizedCLOB prevents wash trading
+- **Batch auction resistance**: `NoSelfTrades` in BatchedAuction/ZKDarkPool also blocks self-trades
+
+**Verified properties (pool correctness):**
+| Property | Type | Description |
+|---|---|---|
+| PositiveReserves | Invariant | Pool reserves always > 0 |
+| ConstantProductInvariant | Invariant | `reserveA * reserveB >= initial k` |
+
+**Wash trading properties (expected to fail — add as INVARIANT to see counterexamples):**
+| Property | Description |
+|---|---|
+| NoWashTrading | Volume stays at 0 (FAILS: first swap generates volume immediately) |
+| NoManipulatorLoss | Manipulator doesn't lose value (FAILS: 1 round-trip costs 1A in fees, 30A → 29A) |
+| VolumeReflectsActivity | Volume = 0 when net position unchanged (FAILS: 19 volume units with zero net change) |
+
 ### ZKDarkPool
 
 A sealed-bid batch auction with commit-reveal protocol — also known as a **hidden batch auction**, **encrypted batch auction**, or **sealed-bid batch auction**. This is not a different clearing mechanism from `BatchedAuction`: the clearing logic is identical (uniform price, maximum volume). The difference is an information-hiding layer: orders are sealed during collection and destroyed after clearing. All `BatchedAuction` invariants pass unchanged here, confirming they are structurally the same mechanism — privacy adds MEV resistance on top without altering correctness.
@@ -494,6 +541,7 @@ The key structural differences, verified by TLC:
 | Cross-node consensus | N/A (single node) | No (TLC counterexample) | Yes (ordering independence) | Yes (ordering independence) | N/A (single pool) |
 | Spread arbitrage possible | Yes | Yes | No (uniform price) | No (uniform price) | Yes (price impact) |
 | Front-running resistant | No (TLC counterexample) | No (ordering power) | Yes (ordering independence) | Yes (ordering independence) | N/A (no order book) |
+| Wash trading resistant | Yes (self-trade prevention) | Yes (self-trade prevention) | Yes (self-trade prevention) | Yes (self-trade prevention) | No (no identity check) |
 | Sandwich attack resistant | N/A (off-chain) | No (ordering power) | Yes (uniform price) | Yes (verified: SandwichResistant) | No (TLC counterexample) |
 | Pre-trade privacy | No | No | No | Yes (sealed bids) | No |
 | Post-trade privacy | No | No | No | Yes (verified: orders destroyed) | No |
@@ -509,6 +557,7 @@ To see counterexamples:
 - **AMM non-uniform pricing**: add `INVARIANT AllSwapsSamePrice` to `AMM.cfg` (with `MaxTime = 4`)
 - **Decentralized CLOB divergence**: add `INVARIANT ConsensusOnTrades` (or `ConsensusOnPrices`, `ConsensusOnVolume`) to `DecentralizedCLOB.cfg`
 - **CLOB front-running**: add `INVARIANT NoPriceDegradation` or `INVARIANT NoAdversaryProfit` to `FrontRunning.cfg`
+- **Wash trading**: add `INVARIANT NoWashTrading`, `INVARIANT NoManipulatorLoss`, or `INVARIANT VolumeReflectsActivity` to `WashTrading.cfg`
 - **Sandwich attack**: add `INVARIANT NoPriceDegradation` or `INVARIANT NoAdversaryProfit` to `SandwichAttack.cfg`
 - **Impermanent loss**: add `INVARIANT NoImpermanentLoss` to `ImpermanentLoss.cfg`
 - **Cross-venue arbitrage profit**: add `INVARIANT NoArbitrageProfit` or `INVARIANT NoLPValueLoss` to `CrossVenueArbitrage.cfg`
@@ -547,6 +596,7 @@ graph TD
 | Decentralizing a CLOB breaks consensus | TLC counterexample: same orders delivered in different sequence → one node executes a trade, the other executes none |
 | AMM price depends on swap ordering and size | TLC counterexample: same input amounts yield different output amounts depending on reserve state |
 | CLOBs are vulnerable to front-running | TLC counterexample: adversary buys 1 unit at 10, victim pays 40 instead of 35 (14% degradation); adversary profits from buying below market |
+| AMMs are vulnerable to wash trading | TLC counterexample: 1 round-trip generates 19 units of volume at cost of 1A in fees; no identity check to prevent self-trading |
 | AMMs are vulnerable to sandwich attacks | TLC counterexample: adversary extracts 1A profit while victim loses 2B (22% worse output) |
 | Batch auctions resist sandwich attacks | `OrderingIndependence` + `UniformClearingPrice` — no price to move between trades |
 | AMM LPs face impermanent loss from any price movement | TLC counterexample: single swap of 8A causes IL despite fees growing k from 10,000 to 10,044 |
@@ -581,6 +631,7 @@ java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC BatchedAuction -config BatchedAuc
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC AMM -config AMM.cfg -modelcheck
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC DecentralizedCLOB -config DecentralizedCLOB.cfg -modelcheck
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC FrontRunning -config FrontRunning.cfg -modelcheck
+java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC WashTrading -config WashTrading.cfg -modelcheck
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC SandwichAttack -config SandwichAttack.cfg -modelcheck
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC ImpermanentLoss -config ImpermanentLoss.cfg -modelcheck
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC CrossVenueArbitrage -config CrossVenueArbitrage.cfg -modelcheck
