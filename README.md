@@ -1,6 +1,16 @@
 # Formal Market Mechanisms
 
-TLA+ specifications for comparing market mechanisms. The goal is to formally verify correctness properties and compare structural differences across centralized, decentralized, continuous, and batched trading systems.
+TLA+ specifications that formally verify and compare market mechanisms — CLOBs, batch auctions, AMMs, and privacy-preserving dark pools — across correctness, fairness, MEV resistance, and decentralizability.
+
+**Key results (all TLC-verified, not just argued):**
+- An **impossibility triangle** between fairness, liquidity, and immediacy — no mechanism can provide all three
+- Batch auctions are **safe to decentralize** (OrderingIndependence); CLOBs are not (TLC counterexample: same orders → different trades at different nodes)
+- Sandwich attacks, front-running, and latency arbitrage are **structurally impossible** in batch auctions — formally verified, not just claimed
+- Privacy (sealed bids + order destruction) is a **mechanism design tool** for MEV elimination, proven equivalent to batch clearing via refinement mapping
+- AMMs provide **always-available liquidity** but are vulnerable to sandwich attacks, wash trading, and impermanent loss — all with TLC counterexamples
+
+**5 mechanism specs:** CentralizedCLOB · BatchedAuction · AMM · ZKDarkPool · DecentralizedCLOB
+**7 attack/economic specs:** SandwichAttack · FrontRunning · LatencyArbitrage · WashTrading · ImpermanentLoss · CrossVenueArbitrage · ZKRefinement
 
 ## Mechanisms
 
@@ -386,7 +396,7 @@ sequenceDiagram
     M->>P: swap 9B → A
     P->>M: gets 9A
 
-    Note over M: 2 round-trips:<br/>lost ~2A in fees<br/>generated ~38 in volume<br/>volume/cost ratio ≈ 19x
+    Note over M: 2 round-trips:<br/>lost ~3A in fees<br/>generated ~37 in volume<br/>volume/cost ratio ≈ 12x
 ```
 
 - **No identity check**: AMM swaps are permissionless — anyone can trade, no STP
@@ -614,7 +624,7 @@ The key structural differences, verified by TLC:
 | Spread arbitrage possible | Yes | Yes | No (uniform price) | No (uniform price) | Yes (price impact) |
 | Front-running resistant | No (TLC counterexample) | No (ordering power) | Yes (ordering independence) | Yes (ordering independence) | N/A (no order book) |
 | Wash trading resistant | Yes (self-trade prevention) | Yes (self-trade prevention) | Yes (self-trade prevention) | Yes (self-trade prevention) | No (no identity check) |
-| Sandwich attack resistant | N/A (off-chain) | No (ordering power) | Yes (uniform price) | Yes (verified: SandwichResistant) | No (TLC counterexample) |
+| Sandwich attack resistant | Trust assumption (single operator) | No (ordering power) | Yes (uniform price) | Yes (verified: SandwichResistant) | No (TLC counterexample) |
 | Pre-trade privacy | No | No | No | Yes (sealed bids) | No |
 | Post-trade privacy | No | No | No | Yes (verified: orders destroyed) | No |
 | Always-available liquidity | No (book can be empty) | No (book can be empty) | No (batch can be empty) | No (batch can be empty) | Yes (verified) |
@@ -681,7 +691,7 @@ graph TD
 | Post-trade privacy is structurally enforced | `PostTradeOrdersDestroyed` verified: after clearing, `buyOrders = <<>>` and `sellOrders = <<>>` — individual orders are destroyed, only clearing price + fills retained |
 | ZKDarkPool is a formal refinement of BatchedAuction | All 6 BatchedAuction invariants pass on ZKDarkPool's state space via INSTANCE variable mapping (ZKRefinement.tla) — privacy is a pure addition, not a mechanism change |
 | AMM liquidity never runs out | `PositiveReserves` + `PositiveSwapOutput` hold in all states — swaps always succeed |
-| All four mechanisms conserve assets (per-node) | `ConservationOfAssets` / `ConservationOfTokens` verified for each |
+| All mechanisms conserve assets (per-node) | `ConservationOfAssets` / `ConservationOfTokens` verified for each mechanism |
 
 **The impossibility triangle:** a mechanism that clears at a uniform price (fairness) must collect orders before clearing, sacrificing immediacy. A mechanism that always has liquidity (AMM) must price algorithmically, creating price impact that depends on ordering. A mechanism that matches immediately (CLOB) exposes different prices to different participants, enabling spread arbitrage. These are structural constraints, not implementation choices — they follow from the definitions of the mechanisms themselves.
 
