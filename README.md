@@ -197,6 +197,7 @@ graph TB
     end
 
     O --> CLOB
+    O --> DCLOB
     O --> Batch
     O --> AMM
 
@@ -205,6 +206,13 @@ graph TB
         C1["Trade 1: price = 2<br/>(Alice buy@2 vs Bob sell@2)"]
         C2["Trade 2: price = 1<br/>(Alice buy@1 vs Bob sell@1)"]
         C1 --> CS["Two different prices<br/>Spread arbitrage possible"]
+    end
+
+    subgraph DCLOB["DecentralizedCLOB"]
+        direction TB
+        DN1["Node 1: trade at price 2<br/>(saw sell@2 first)"]
+        DN2["Node 2: trade at price 1<br/>(saw sell@1 first)"]
+        DN1 --> DS["Nodes disagree on price<br/>Requires consensus"]
     end
 
     subgraph Batch["BatchedAuction"]
@@ -222,6 +230,7 @@ graph TB
     end
 
     style CS fill:#fee
+    style DS fill:#fdd
     style BS fill:#efe
     style AS fill:#fee
 ```
