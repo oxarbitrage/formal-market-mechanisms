@@ -1,6 +1,6 @@
 # ShieldedDEX
 
-<sub>[spec](https://github.com/alfredogarcia/formal-market-mechanisms/blob/main/specs/ShieldedDEX.tla) · [config](https://github.com/alfredogarcia/formal-market-mechanisms/blob/main/specs/ShieldedDEX.cfg)</sub>
+<sub>[spec](https://github.com/oxarbitrage/formal-market-mechanisms/blob/main/specs/ShieldedDEX.tla) · [config](https://github.com/oxarbitrage/formal-market-mechanisms/blob/main/specs/ShieldedDEX.cfg)</sub>
 
 A multi-asset shielded exchange where even the **asset pair** is hidden — not just order contents. Inspired by [Zcash Shielded Assets (ZIP-226/227)](https://zips.z.cash/zip-0227): custom tokens issued within the shielded pool inherit Zcash's privacy guarantees, making transfers of different asset types indistinguishable on-chain. Also related to [Penumbra](https://penumbra.zone/)'s multi-asset shielded pools and [Anoma](https://anoma.net/)'s intent-centric privacy architecture.
 

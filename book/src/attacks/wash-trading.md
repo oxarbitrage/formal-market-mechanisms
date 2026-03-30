@@ -1,6 +1,6 @@
 # WashTrading
 
-<sub>[spec](https://github.com/alfredogarcia/formal-market-mechanisms/blob/main/specs/WashTrading.tla) · [config](https://github.com/alfredogarcia/formal-market-mechanisms/blob/main/specs/WashTrading.cfg)</sub>
+<sub>[spec](https://github.com/oxarbitrage/formal-market-mechanisms/blob/main/specs/WashTrading.tla) · [config](https://github.com/oxarbitrage/formal-market-mechanisms/blob/main/specs/WashTrading.cfg)</sub>
 
 Models wash trading on an AMM: a manipulator trades with themselves (swap A→B then B→A) to inflate reported volume. On a CLOB, self-trade prevention blocks this. On an AMM, there is no counterparty identity — any address can swap. The manipulator loses only fees, but the volume appears genuine on-chain. Estimated 40-70% of DEX volume is wash trading, used to game token listings, airdrops, and liquidity mining rewards.
 

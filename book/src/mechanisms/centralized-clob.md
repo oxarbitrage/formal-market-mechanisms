@@ -1,6 +1,6 @@
 # CentralizedCLOB
 
-<sub>[spec](https://github.com/alfredogarcia/formal-market-mechanisms/blob/main/specs/CentralizedCLOB.tla) · [config](https://github.com/alfredogarcia/formal-market-mechanisms/blob/main/specs/CentralizedCLOB.cfg)</sub>
+<sub>[spec](https://github.com/oxarbitrage/formal-market-mechanisms/blob/main/specs/CentralizedCLOB.tla) · [config](https://github.com/oxarbitrage/formal-market-mechanisms/blob/main/specs/CentralizedCLOB.cfg)</sub>
 
 A continuous limit order book with a single matching engine. Orders are matched immediately using price-time priority. This models traditional exchanges like NYSE, NASDAQ, and centralized crypto exchanges (Binance, Coinbase).
 

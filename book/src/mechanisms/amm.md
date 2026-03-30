@@ -1,6 +1,6 @@
 # AMM (Automated Market Maker)
 
-<sub>[spec](https://github.com/alfredogarcia/formal-market-mechanisms/blob/main/specs/AMM.tla) · [config](https://github.com/alfredogarcia/formal-market-mechanisms/blob/main/specs/AMM.cfg)</sub>
+<sub>[spec](https://github.com/oxarbitrage/formal-market-mechanisms/blob/main/specs/AMM.tla) · [config](https://github.com/oxarbitrage/formal-market-mechanisms/blob/main/specs/AMM.cfg)</sub>
 
 A constant-product market maker (x*y=k). No order book — traders swap against a liquidity pool. Price is determined by the reserve ratio, not by matching orders. This models [Uniswap v2](https://docs.uniswap.org/contracts/v2/overview) and its forks (SushiSwap, PancakeSwap). Related designs include [Curve](https://curve.fi/) (StableSwap invariant) and [Balancer](https://balancer.fi/) (generalized weighted pools).
 

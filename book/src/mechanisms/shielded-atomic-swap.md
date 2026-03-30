@@ -1,6 +1,6 @@
 # ShieldedAtomicSwap
 
-<sub>[spec](https://github.com/alfredogarcia/formal-market-mechanisms/blob/main/specs/ShieldedAtomicSwap.tla) · [config](https://github.com/alfredogarcia/formal-market-mechanisms/blob/main/specs/ShieldedAtomicSwap.cfg)</sub>
+<sub>[spec](https://github.com/oxarbitrage/formal-market-mechanisms/blob/main/specs/ShieldedAtomicSwap.tla) · [config](https://github.com/oxarbitrage/formal-market-mechanisms/blob/main/specs/ShieldedAtomicSwap.cfg)</sub>
 
 A shielded atomic swap: P2P cross-chain settlement with **unlinkability**. Standard HTLCs have a known privacy flaw — the same hash H appears on both chains, allowing an observer to link the two legs of the swap. Even on privacy chains like Zcash, the HTLC hash pattern leaks cross-chain linkage.
 

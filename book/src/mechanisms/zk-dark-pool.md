@@ -1,6 +1,6 @@
 # ZKDarkPool
 
-<sub>[spec](https://github.com/alfredogarcia/formal-market-mechanisms/blob/main/specs/ZKDarkPool.tla) · [config](https://github.com/alfredogarcia/formal-market-mechanisms/blob/main/specs/ZKDarkPool.cfg)</sub>
+<sub>[spec](https://github.com/oxarbitrage/formal-market-mechanisms/blob/main/specs/ZKDarkPool.tla) · [config](https://github.com/oxarbitrage/formal-market-mechanisms/blob/main/specs/ZKDarkPool.cfg)</sub>
 
 A sealed-bid batch auction with commit-reveal protocol — also known as a **hidden batch auction**, **encrypted batch auction**, or **sealed-bid batch auction**. This is not a different clearing mechanism from `BatchedAuction`: the clearing logic is identical (uniform price, maximum volume). The difference is an information-hiding layer: orders are sealed during collection and destroyed after clearing. All `BatchedAuction` invariants pass unchanged here, confirming they are structurally the same mechanism — privacy adds MEV resistance on top without altering correctness.
 

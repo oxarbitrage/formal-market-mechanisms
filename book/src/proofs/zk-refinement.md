@@ -1,6 +1,6 @@
 # ZKRefinement
 
-<sub>[spec](https://github.com/alfredogarcia/formal-market-mechanisms/blob/main/specs/ZKRefinement.tla) · [config](https://github.com/alfredogarcia/formal-market-mechanisms/blob/main/specs/ZKRefinement.cfg)</sub>
+<sub>[spec](https://github.com/oxarbitrage/formal-market-mechanisms/blob/main/specs/ZKRefinement.tla) · [config](https://github.com/oxarbitrage/formal-market-mechanisms/blob/main/specs/ZKRefinement.cfg)</sub>
 
 Formal refinement proof: ZKDarkPool implements BatchedAuction. This module instantiates `BatchedAuction` with a variable mapping from `ZKDarkPool`'s state, then verifies that all BatchedAuction invariants hold under the mapping. This is the TLA+ native way to prove that two specifications describe the same mechanism.
 

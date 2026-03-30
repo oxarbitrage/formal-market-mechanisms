@@ -1,6 +1,6 @@
 # CrossVenueArbitrage
 
-<sub>[spec](https://github.com/alfredogarcia/formal-market-mechanisms/blob/main/specs/CrossVenueArbitrage.tla) · [config](https://github.com/alfredogarcia/formal-market-mechanisms/blob/main/specs/CrossVenueArbitrage.cfg)</sub>
+<sub>[spec](https://github.com/oxarbitrage/formal-market-mechanisms/blob/main/specs/CrossVenueArbitrage.tla) · [config](https://github.com/oxarbitrage/formal-market-mechanisms/blob/main/specs/CrossVenueArbitrage.cfg)</sub>
 
 Models arbitrage between a CLOB and an AMM trading the same asset. When prices diverge, an arbitrageur buys on the cheap venue and sells on the expensive one, profiting from the difference. Unlike sandwich attacks, this is "productive" MEV — it aligns prices across venues. But the profit comes at the expense of the AMM LP (impermanent loss). This models the CEX/DEX arbitrage that dominates Ethereum MEV: bots like [Wintermute](https://www.wintermute.com/) and [Jump](https://www.jumptrading.com/) continuously arbitrage between centralized exchanges and on-chain AMMs.
 

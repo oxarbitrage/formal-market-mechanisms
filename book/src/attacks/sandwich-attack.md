@@ -1,6 +1,6 @@
 # SandwichAttack
 
-<sub>[spec](https://github.com/alfredogarcia/formal-market-mechanisms/blob/main/specs/SandwichAttack.tla) · [config](https://github.com/alfredogarcia/formal-market-mechanisms/blob/main/specs/SandwichAttack.cfg)</sub>
+<sub>[spec](https://github.com/oxarbitrage/formal-market-mechanisms/blob/main/specs/SandwichAttack.tla) · [config](https://github.com/oxarbitrage/formal-market-mechanisms/blob/main/specs/SandwichAttack.cfg)</sub>
 
 Models the canonical [MEV](https://ethereum.org/en/developers/docs/mev/) (Maximal Extractable Value) attack against a constant-product AMM. An adversary who controls transaction ordering (block builder, sequencer) can extract value from other traders by sandwiching their swaps. This is the primary attack vector against AMMs like Uniswap, and the main motivation behind MEV-resistant designs like [Flashbots](https://www.flashbots.net/), [Penumbra](https://penumbra.zone/), and [CoW Protocol](https://cow.fi/).
 

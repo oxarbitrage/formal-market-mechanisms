@@ -1,6 +1,6 @@
 # LatencyArbitrage
 
-<sub>[spec](https://github.com/alfredogarcia/formal-market-mechanisms/blob/main/specs/LatencyArbitrage.tla) · [config](https://github.com/alfredogarcia/formal-market-mechanisms/blob/main/specs/LatencyArbitrage.cfg)</sub>
+<sub>[spec](https://github.com/oxarbitrage/formal-market-mechanisms/blob/main/specs/LatencyArbitrage.tla) · [config](https://github.com/oxarbitrage/formal-market-mechanisms/blob/main/specs/LatencyArbitrage.cfg)</sub>
 
 Models latency arbitrage between two CLOBs — the core mechanism from [Budish, Cramton, and Shim (2015)](https://faculty.chicagobooth.edu/eric.budish/research/HFT-FrequentBatchAuctions.pdf). When a public signal moves the "true" price, one exchange updates faster than the other. A fast trader snipes the stale quote on the slow exchange before the market maker can update. This models the HFT arms race between NYSE and BATS/IEX, cross-exchange crypto arbitrage (Binance vs Coinbase), and cross-L2 latency (Arbitrum vs Optimism).
 

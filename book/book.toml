@@ -9,7 +9,7 @@ src = "src"
 build-dir = "../docs"
 
 [output.html]
-git-repository-url = "https://github.com/alfredogarcia/formal-market-mechanisms"
+git-repository-url = "https://github.com/oxarbitrage/formal-market-mechanisms"
 additional-css = []
 
 [preprocessor.mermaid]
