@@ -13,6 +13,7 @@ TLA+ specifications that formally verify and compare market mechanisms — CLOBs
 - Asset-type privacy (ShieldedDEX) adds a **4th dimension** to the impossibility triangle — privacy vs price discovery — but does NOT fix the original three-way tradeoff
 - AMMs provide **always-available liquidity** but are vulnerable to sandwich attacks, wash trading, and impermanent loss — all with TLC counterexamples
 - **ShieldedDEX** is the only mechanism to resist all 6 attack categories (6/6) — combining the strongest privacy with the least vulnerable clearing mechanism
+- **ShieldedAtomicSwap** enables fully P2P cross-chain settlement with unlinkability — observer cannot connect the two legs of a swap (no coordinator, no mempool, no hash linkage)
 
 ## Specs
 
@@ -25,6 +26,7 @@ TLA+ specifications that formally verify and compare market mechanisms — CLOBs
 | [AMM](specs/AMM.tla) | Constant-product market maker (x*y=k) |
 | [ZKDarkPool](specs/ZKDarkPool.tla) | Sealed-bid batch auction with commit-reveal protocol |
 | [ShieldedDEX](specs/ShieldedDEX.tla) | Multi-asset shielded exchange — asset pair hidden in commitment (novel) |
+| [ShieldedAtomicSwap](specs/ShieldedAtomicSwap.tla) | P2P cross-chain settlement with unlinkability — no coordinator (novel) |
 | [DecentralizedCLOB](specs/DecentralizedCLOB.tla) | Multi-node CLOB with nondeterministic order delivery |
 
 ### Attacks & Economic Properties
@@ -81,6 +83,7 @@ See [Running the Specs](book/src/running.md) for the full list of commands, or u
 | AMM | [Uniswap v2](https://docs.uniswap.org/contracts/v2/overview), SushiSwap, PancakeSwap, [Curve](https://curve.fi/), [Balancer](https://balancer.fi/) |
 | ZKDarkPool | [Penumbra](https://penumbra.zone/), [Renegade](https://renegade.fi/), [MEV Blocker](https://mevblocker.io/) |
 | ShieldedDEX | [Zcash ZSA (ZIP-226/227)](https://zips.z.cash/zip-0226), [Penumbra](https://penumbra.zone/), [Anoma](https://anoma.net/) |
+| ShieldedAtomicSwap | [Zcash ZSA (ZIP-226/227)](https://zips.z.cash/zip-0226), [Komodo AtomicDEX](https://atomicdex.io/), ZK-contingent payments |
 | DecentralizedCLOB | [Serum/OpenBook](https://www.openbook-solana.com/), [dYdX v4](https://dydx.exchange/), [Hyperliquid](https://hyperliquid.xyz/) |
 
 **Academic:** Budish, Cramton, Shim — "[The High-Frequency Trading Arms Race](https://faculty.chicagobooth.edu/eric.budish/research/HFT-FrequentBatchAuctions.pdf)" (2015)

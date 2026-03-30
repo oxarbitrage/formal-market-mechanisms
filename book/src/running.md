@@ -16,6 +16,7 @@ java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC CrossVenueArbitrage -config Cross
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC ZKDarkPool -config ZKDarkPool.cfg -modelcheck
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC ZKRefinement -config ZKRefinement.cfg -modelcheck
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC ShieldedDEX -config ShieldedDEX.cfg -modelcheck
+java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC ShieldedAtomicSwap -config ShieldedAtomicSwap.cfg -modelcheck
 ```
 
 Or use the [TLA+ VS Code extension](https://marketplace.visualstudio.com/items?itemName=tlaplus.vscode-tlaplus).

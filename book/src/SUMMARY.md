@@ -9,6 +9,7 @@
 - [AMM](mechanisms/amm.md)
 - [ZKDarkPool](mechanisms/zk-dark-pool.md)
 - [ShieldedDEX](mechanisms/shielded-dex.md)
+- [ShieldedAtomicSwap](mechanisms/shielded-atomic-swap.md)
 - [DecentralizedCLOB](mechanisms/decentralized-clob.md)
 
 # Attacks & Economic Properties
