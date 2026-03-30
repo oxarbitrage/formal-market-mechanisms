@@ -1,0 +1,20 @@
+[book]
+title = "Formal Market Mechanisms"
+authors = ["Alfredo Garcia"]
+language = "en"
+multilingual = false
+src = "src"
+
+[build]
+build-dir = "../docs"
+
+[output.html]
+git-repository-url = "https://github.com/alfredogarcia/formal-market-mechanisms"
+additional-css = []
+
+[preprocessor.mermaid]
+command = "mdbook-mermaid"
+
+[output.html.fold]
+enable = true
+level = 0
