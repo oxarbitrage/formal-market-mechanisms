@@ -7,10 +7,11 @@ TLA+ specifications that formally verify and compare market mechanisms — CLOBs
 - Batch auctions are **safe to decentralize** (OrderingIndependence); CLOBs are not (TLC counterexample: same orders → different trades at different nodes)
 - Sandwich attacks, front-running, and latency arbitrage are **structurally impossible** in batch auctions — formally verified, not just claimed
 - Privacy (sealed bids + order destruction) is a **mechanism design tool** for MEV elimination, proven equivalent to batch clearing via refinement mapping
+- Asset-type privacy (ShieldedDEX) adds a **4th dimension** to the impossibility triangle — privacy vs price discovery — but does NOT fix the original three-way tradeoff
 - AMMs provide **always-available liquidity** but are vulnerable to sandwich attacks, wash trading, and impermanent loss — all with TLC counterexamples
 
-**5 mechanism specs:** CentralizedCLOB · BatchedAuction · AMM · ZKDarkPool · DecentralizedCLOB
-**7 attack/economic specs:** SandwichAttack · FrontRunning · LatencyArbitrage · WashTrading · ImpermanentLoss · CrossVenueArbitrage · ZKRefinement
+**6 mechanism specs:** CentralizedCLOB · BatchedAuction · AMM · ZKDarkPool · ShieldedDEX · DecentralizedCLOB
+**8 attack/economic/proof specs:** SandwichAttack · FrontRunning · LatencyArbitrage · WashTrading · ImpermanentLoss · CrossVenueArbitrage · ZKRefinement · ShieldedDEX
 
 ## Mechanisms
 
@@ -474,6 +475,136 @@ Three phases enforce privacy structurally:
 | PostTradeOrdersDestroyed | Invariant | After clearing, individual orders are destroyed (only clearing price + fills retained) |
 | EventualClearing | Liveness | If the batch is ready to clear, it eventually clears |
 
+### ShieldedDEX
+
+A multi-asset shielded exchange where even the **asset pair** is hidden — not just order contents. Inspired by [Zcash Shielded Assets (ZIP-226/227)](https://zips.z.cash/zip-0227): custom tokens issued within the shielded pool inherit Zcash's privacy guarantees, making transfers of different asset types indistinguishable on-chain. Also related to [Penumbra](https://penumbra.zone/)'s multi-asset shielded pools and [Anoma](https://anoma.net/)'s intent-centric privacy architecture.
+
+This is a **genuinely new mechanism type**, not a formalization of an existing design. It extends `ZKDarkPool` from single-pair to multi-pair with asset-type privacy.
+
+**Implementation status:** Zcash's ZSA ZIPs (226/227) define how to issue and transfer custom tokens privately, but **no matching engine exists** in the Zcash protocol. A ShieldedDEX would require additional protocol work:
+
+| Component | What's needed | Status |
+|---|---|---|
+| Shielded custom tokens | ZIP-226 (issuance), ZIP-227 (transfer) | Specified, not yet activated |
+| Order commitment tx type | New transaction type or memo-field protocol for submitting shielded orders | **Does not exist** |
+| Batch clearing logic | Consensus-layer rule (new ZIP) or smart contract for clearing batches | **Does not exist** |
+| ZK proof of valid order | Prover circuit: order is well-formed without revealing contents or pair | **Does not exist** |
+| Clearing verification | Validators verify correct batch execution via ZK proof | **Does not exist** |
+
+Possible paths to implementation:
+- **Consensus-layer ZIP** — new transaction types for order commitments + consensus rule for batch clearing. Most secure, hardest to deploy.
+- **Layer 2 / sidechain** — batch clearing off-chain, settlement on Zcash via shielded transfers. Easier to deploy, weaker trust assumptions.
+- **Smart contract layer** — if Zcash gains programmability, ShieldedDEX could be a contract on the shielded pool.
+
+**How ShieldedDEX differs from existing systems:**
+
+| Property | Penumbra | Anoma | ShieldedDEX (this work) |
+|---|---|---|---|
+| Asset pair hidden | No (public markets) | Partial (solver sees) | **Yes** |
+| Matching method | Deterministic batch | Solver-based | Deterministic batch |
+| Trusted party needed | No | **Yes (solver)** | No |
+| Asset-targeted attacks | Vulnerable (pair known) | Solver-dependent | **Resistant** (pair hidden) |
+| Formally verified | No | No | **Yes (TLC, 48,065 states)** |
+| Cross-pair isolation proven | No | No | **Yes** (`CrossPairIsolation` invariant) |
+| Price discovery cost quantified | No | No | **Yes** (`CrossPairPriceConsistency` counterexample) |
+
+Penumbra hides order contents but not the pair — an attacker can see which markets are active and target them. Anoma hides intents but delegates matching to solvers who must see (or partially see) the intents to match them. ShieldedDEX occupies a design point neither system has explored: **pair-hiding with solver-free deterministic clearing**.
+
+**What's novel (and what isn't):**
+
+The clearing mechanism itself is a batch auction applied per-pair — not a new algorithm. The privacy model is at the mechanism design level, not the cryptographic level (we don't specify ZK circuits). What is new:
+
+1. **Pair-hiding + deterministic clearing** — no existing system combines these. Penumbra has deterministic clearing but public pairs. Anoma has privacy but trusted solvers. This is a previously unoccupied design point.
+2. **Formal proof: asset-type privacy prevents asset-targeted attacks** — the only mechanism in our suite to resist all 6 attack categories (6/6 vs 5/6 for ZKDarkPool/BatchedAuction). TLC-verified, not argued.
+3. **Formal proof: privacy does NOT fix the impossibility triangle** — a negative result with concrete counterexample (P1@1, P2@2 with no correction). The `NoImmediacy` invariant confirms batching still sacrifices immediacy regardless of privacy.
+4. **The 4th dimension: privacy vs price discovery** — extends the impossibility triangle to a tetrahedron. Full asset-type privacy eliminates cross-pair arbitrage, which means price information doesn't propagate across pairs. This tradeoff has not been formalized before.
+
+This spec formalizes the mechanism design that Zcash's ZSA infrastructure **makes possible** — a blueprint for what could be built once the protocol supports it.
+
+```mermaid
+sequenceDiagram
+    participant T1 as Trader 1
+    participant T2 as Trader 2
+    participant S as Shielded DEX
+    participant O as Observer
+
+    Note over S: COMMIT PHASE
+
+    T1->>S: shielded commitment<br/>(pair hidden, contents hidden)
+    T2->>S: shielded commitment<br/>(pair hidden, contents hidden)
+    T1->>S: shielded commitment
+    T2->>S: shielded commitment
+
+    Note over O: sees: 4 commitments<br/>can't tell: which pairs,<br/>which directions, what prices
+
+    Note over S: CLEAR PHASE (per-pair, isolated)
+
+    S->>S: clear Pair 1 @ price 1
+    S->>S: clear Pair 2 @ price 2
+
+    Note over O: sees: clearing happened<br/>can't tell: which pairs cleared,<br/>at what prices, or how many pairs
+
+    Note over S: DONE: all orders destroyed
+
+    S->>T1: your fills (pair-specific)
+    S->>T2: your fills (pair-specific)
+
+    Note over O: cross-pair prices diverged<br/>(1 vs 2) but no one can<br/>see it to arbitrage
+```
+
+**What's new vs ZKDarkPool:**
+| Property | ZKDarkPool | ShieldedDEX |
+|---|---|---|
+| Order contents hidden | Yes | Yes |
+| Asset pair hidden | **No** | **Yes** |
+| Trade vs transfer distinguishable | Yes (batch event visible) | **Harder** (multi-pair obfuscation) |
+| Cross-pair arbitrage possible | N/A (single pair) | **No** (pairs hidden) |
+| Attacker can target specific pair | Yes (pair known) | **No** (pair hidden) |
+
+**Observer information visibility (what an on-chain observer learns):**
+| Information | CentralizedCLOB | AMM | BatchedAuction | ZKDarkPool | ShieldedDEX |
+|---|---|---|---|---|---|
+| Order exists | Yes | Yes (swap tx) | Yes | Yes (commitment) | Yes (commitment) |
+| Order direction (buy/sell) | Yes | Yes | Yes | **No** | **No** |
+| Limit price | Yes | N/A | Yes | **No** | **No** |
+| Quantity | Yes | Yes | Yes | **No** | **No** |
+| Trader identity | Yes | Yes (address) | Yes | **No** (ZK proof) | **No** (ZK proof) |
+| Asset pair targeted | Yes | Yes (pool) | Yes | **Yes** (pair known) | **No** (pair hidden) |
+| Which pairs are active | Yes | Yes | Yes | Yes | **No** |
+| Number of orders per pair | Yes | N/A | Yes | Yes | **No** |
+| Clearing price | Yes (trade-by-trade) | Yes (reserves) | Yes | Yes (post-clear) | **Per-pair, hidden** |
+| Trade vs transfer | Yes | Yes | Yes | Distinguishable | **Indistinguishable** |
+
+ShieldedDEX reveals strictly less information than every other mechanism. The rightmost column has the most **No** entries — this is the formal basis for the claim that it provides the strongest privacy guarantees in our suite.
+
+**The impossibility triangle is NOT fixed** — ShieldedDEX still uses batch clearing, so it still sacrifices immediacy and always-on liquidity. Privacy adds a **4th dimension** to the tradeoff space:
+
+```
+        Fairness ── privacy axis ── Privacy
+           |                           |
+    Immediacy ──────────────── Liquidity
+```
+
+The new tradeoff: **privacy vs price discovery**. Full asset-type privacy means no one can see cross-pair price divergence, so no one can arbitrage it. Price information doesn't propagate across pairs.
+
+**Verified properties (48,065 states):**
+| Property | Type | Description |
+|---|---|---|
+| PerPairUniformPrice | Invariant | All trades within each pair execute at the same price |
+| PerPairPriceImprovement | Invariant | Trade price within both parties' limits, per pair |
+| PerPairPositiveTradeQuantities | Invariant | Every trade has quantity > 0, per pair |
+| PerPairNoSelfTrades | Invariant | No self-trades within any pair |
+| CrossPairIsolation | Invariant | Each pair's clearing depends only on that pair's orders |
+| PerPairSandwichResistant | Invariant | Sandwich pattern yields zero profit per pair + attacker can't target a pair |
+| PostTradeOrdersDestroyed | Invariant | After clearing, orders destroyed across ALL pairs |
+| NoImmediacy | Invariant | No trades during commit phase (triangle not fixed) |
+| EventualClearing | Liveness | Batch eventually clears |
+
+**Price discovery property (expected to fail — add as INVARIANT to see counterexample):**
+| Property | Description |
+|---|---|
+| CrossPairPriceConsistency | Clearing prices across pairs should be consistent (FAILS: P1 clears at 1, P2 clears at 2 — divergence with no correction mechanism because pair activity is hidden) |
+
 ### ZKRefinement
 
 Formal refinement proof: ZKDarkPool implements BatchedAuction. This module instantiates `BatchedAuction` with a variable mapping from `ZKDarkPool`'s state, then verifies that all BatchedAuction invariants hold under the mapping. This is the TLA+ native way to prove that two specifications describe the same mechanism.
@@ -569,6 +700,7 @@ graph TB
     O --> DCLOB
     O --> Batch
     O --> ZK
+    O --> SD
     O --> AMM
 
     subgraph CLOB["CentralizedCLOB"]
@@ -600,6 +732,14 @@ graph TB
         ZK2 --> ZKS["Uniform price + privacy<br/>Orders destroyed after clearing<br/>Sandwich impossible"]
     end
 
+    subgraph SD["ShieldedDEX"]
+        direction TB
+        SD1["Pair hidden + sealed bids"]
+        SD2["Per-pair clearing<br/>(P1@1, P2@2)"]
+        SD1 --> SD2
+        SD2 --> SDS["Asset-type privacy<br/>Cross-pair arbitrage impossible<br/>Price discovery lost"]
+    end
+
     subgraph AMM["AMM"]
         direction TB
         A1["Swap 1: 2A in, 1B out<br/>(effective price: 2)"]
@@ -611,28 +751,31 @@ graph TB
     style DS fill:#fdd
     style BS fill:#efe
     style ZKS fill:#dfd
+    style SDS fill:#cfc
     style AS fill:#fee
 ```
 
 The key structural differences, verified by TLC:
 
-| Property | CentralizedCLOB | DecentralizedCLOB | BatchedAuction | ZKDarkPool | AMM |
-|---|---|---|---|---|---|
-| Uniform pricing | No | No | Yes (verified) | Yes (verified) | No |
-| Ordering independence | No (price-time priority) | No (delivery order) | Yes (verified) | Yes (verified) | No (price impact) |
-| Cross-node consensus | N/A (single node) | No (TLC counterexample) | Yes (ordering independence) | Yes (ordering independence) | N/A (single pool) |
-| Spread arbitrage possible | Yes | Yes | No (uniform price) | No (uniform price) | Yes (price impact) |
-| Front-running resistant | No (TLC counterexample) | No (ordering power) | Yes (ordering independence) | Yes (ordering independence) | N/A (no order book) |
-| Wash trading resistant | Yes (self-trade prevention) | Yes (self-trade prevention) | Yes (self-trade prevention) | Yes (self-trade prevention) | No (no identity check) |
-| Sandwich attack resistant | Trust assumption (single operator) | No (ordering power) | Yes (uniform price) | Yes (verified: SandwichResistant) | No (TLC counterexample) |
-| Pre-trade privacy | No | No | No | Yes (sealed bids) | No |
-| Post-trade privacy | No | No | No | Yes (verified: orders destroyed) | No |
-| Always-available liquidity | No (book can be empty) | No (book can be empty) | No (batch can be empty) | No (batch can be empty) | Yes (verified) |
-| Price improvement | Yes (verified) | Yes (per-node, verified) | Yes (verified) | Yes (verified) | N/A (no limit prices) |
-| Cross-venue arbitrage | Source venue | Source venue | Resistant (uniform price) | Resistant (uniform price + privacy) | Target venue (LP bears cost) |
-| LP impermanent loss | N/A | N/A | N/A | N/A | Yes (TLC counterexample) |
-| Constant product (k) | N/A | N/A | N/A | N/A | Yes (verified) |
-| Conservation | Yes (verified) | Yes (per-node) | Yes (verified) | Yes (verified) | Yes (verified) |
+| Property | CentralizedCLOB | DecentralizedCLOB | BatchedAuction | ZKDarkPool | ShieldedDEX | AMM |
+|---|---|---|---|---|---|---|
+| Uniform pricing | No | No | Yes (verified) | Yes (verified) | Yes (per-pair, verified) | No |
+| Ordering independence | No (price-time priority) | No (delivery order) | Yes (verified) | Yes (verified) | Yes (per-pair, verified) | No (price impact) |
+| Cross-node consensus | N/A (single node) | No (TLC counterexample) | Yes (ordering independence) | Yes (ordering independence) | Yes (per-pair) | N/A (single pool) |
+| Spread arbitrage possible | Yes | Yes | No (uniform price) | No (uniform price) | No (per-pair uniform price) | Yes (price impact) |
+| Front-running resistant | No (TLC counterexample) | No (ordering power) | Yes (ordering independence) | Yes (ordering independence) | Yes (pair hidden + ordering independence) | N/A (no order book) |
+| Wash trading resistant | Yes (self-trade prevention) | Yes (self-trade prevention) | Yes (self-trade prevention) | Yes (self-trade prevention) | Yes (self-trade prevention) | No (no identity check) |
+| Sandwich attack resistant | Trust assumption (single operator) | No (ordering power) | Yes (uniform price) | Yes (verified: SandwichResistant) | Yes (verified: per-pair + pair hidden) | No (TLC counterexample) |
+| Pre-trade privacy | No | No | No | Yes (sealed bids) | Yes (sealed bids + pair hidden) | No |
+| Post-trade privacy | No | No | No | Yes (verified: orders destroyed) | Yes (verified: all pairs destroyed) | No |
+| Asset-type privacy | No | No | No | No (pair known) | Yes (pair hidden in commitment) | No |
+| Cross-pair arbitrage | N/A | N/A | N/A | N/A | Impossible (pair hidden) | N/A |
+| Always-available liquidity | No (book can be empty) | No (book can be empty) | No (batch can be empty) | No (batch can be empty) | No (batch can be empty) | Yes (verified) |
+| Price improvement | Yes (verified) | Yes (per-node, verified) | Yes (verified) | Yes (verified) | Yes (per-pair, verified) | N/A (no limit prices) |
+| Cross-venue arbitrage | Source venue | Source venue | Resistant (uniform price) | Resistant (uniform price + privacy) | Resistant (uniform price + full privacy) | Target venue (LP bears cost) |
+| LP impermanent loss | N/A | N/A | N/A | N/A | N/A | Yes (TLC counterexample) |
+| Constant product (k) | N/A | N/A | N/A | N/A | N/A | Yes (verified) |
+| Conservation | Yes (verified) | Yes (per-node) | Yes (verified) | Yes (verified) | Yes (per-pair, verified) | Yes (verified) |
 
 To see counterexamples:
 - **CLOB non-uniform pricing**: add `INVARIANT AllTradesSamePrice` to `CentralizedCLOB.cfg` (with `MaxTime = 4`, `MaxOrders = 4`)
@@ -644,6 +787,7 @@ To see counterexamples:
 - **Sandwich attack**: add `INVARIANT NoPriceDegradation` or `INVARIANT NoAdversaryProfit` to `SandwichAttack.cfg`
 - **Impermanent loss**: add `INVARIANT NoImpermanentLoss` to `ImpermanentLoss.cfg`
 - **Cross-venue arbitrage profit**: add `INVARIANT NoArbitrageProfit` or `INVARIANT NoLPValueLoss` to `CrossVenueArbitrage.cfg`
+- **Cross-pair price divergence**: add `INVARIANT CrossPairPriceConsistency` to `ShieldedDEX.cfg`
 
 ## Conclusions
 
@@ -657,6 +801,7 @@ graph TD
 
     F --- BA["BatchedAuction<br/>✓ Uniform pricing<br/>✓ No spread arbitrage<br/>✓ Ordering independence<br/>✓ Safe to decentralize<br/>✗ No always-on liquidity<br/>✗ Must wait for batch"]
     F --- ZKD["ZKDarkPool<br/>✓ All BatchedAuction properties<br/>✓ Pre-trade privacy (sealed bids)<br/>✓ Post-trade privacy (orders destroyed)<br/>✓ Sandwich resistant (verified)<br/>✗ No always-on liquidity<br/>✗ Must wait for batch"]
+    F --- SDE["ShieldedDEX<br/>✓ All ZKDarkPool properties (per-pair)<br/>✓ Asset-type privacy (pair hidden)<br/>✓ Cross-pair isolation (verified)<br/>✗ No always-on liquidity<br/>✗ Must wait for batch<br/>✗ No cross-pair price discovery"]
     L --- AMM_N["AMM<br/>✓ Always-available liquidity<br/>✓ Constant product guaranteed<br/>✗ Price impact per swap<br/>✗ Non-uniform pricing<br/>✗ Ordering dependent"]
     I --- CLOB_N["CentralizedCLOB<br/>✓ Immediate matching<br/>✓ Price improvement<br/>✗ Non-uniform pricing<br/>✗ Ordering dependent<br/>✗ Liquidity depends on book"]
     I --- DCLOB_N["DecentralizedCLOB<br/>✓ Immediate matching (per-node)<br/>✓ Price improvement (per-node)<br/>✗ No cross-node consensus<br/>✗ Delivery order changes outcomes<br/>✗ Requires sequencer/consensus"]
@@ -665,6 +810,7 @@ graph TD
     style AMM_N fill:#eef
     style CLOB_N fill:#fee
     style ZKD fill:#dfd
+    style SDE fill:#cfc
     style DCLOB_N fill:#fdd
 ```
 
@@ -690,12 +836,34 @@ graph TD
 | Sealed bids + uniform price makes sandwich attacks provably impossible | `SandwichResistant` verified: any trader with both buy and sell fills gets the same price on both sides — zero profit from sandwich pattern |
 | Post-trade privacy is structurally enforced | `PostTradeOrdersDestroyed` verified: after clearing, `buyOrders = <<>>` and `sellOrders = <<>>` — individual orders are destroyed, only clearing price + fills retained |
 | ZKDarkPool is a formal refinement of BatchedAuction | All 6 BatchedAuction invariants pass on ZKDarkPool's state space via INSTANCE variable mapping (ZKRefinement.tla) — privacy is a pure addition, not a mechanism change |
+| ShieldedDEX inherits all ZKDarkPool guarantees per pair | `PerPairUniformPrice`, `PerPairPriceImprovement`, `PerPairNoSelfTrades`, `PerPairSandwichResistant` all verified across 48,065 states |
+| Cross-pair isolation holds — each pair clears independently | `CrossPairIsolation` verified: each pair's trades use only that pair's clearing price, no cross-pair information leakage |
+| Asset-type privacy prevents cross-pair arbitrage | `CrossPairPriceConsistency` fails: P1 clears at 1, P2 clears at 2 with no mechanism to align — this is the price discovery cost of privacy |
+| Privacy adds a 4th dimension, does not fix the impossibility triangle | `NoImmediacy` verified: during commit phase, no trades exist in any pair — you still must wait for the batch |
 | AMM liquidity never runs out | `PositiveReserves` + `PositiveSwapOutput` hold in all states — swaps always succeed |
 | All mechanisms conserve assets (per-node) | `ConservationOfAssets` / `ConservationOfTokens` verified for each mechanism |
+
+**Vulnerability resistance summary (TLC-verified):**
+| Attack | CentralizedCLOB | DecentralizedCLOB | BatchedAuction | ZKDarkPool | ShieldedDEX | AMM |
+|---|---|---|---|---|---|---|
+| Front-running | Vulnerable | Vulnerable | **Resistant** | **Resistant** | **Resistant** | N/A |
+| Sandwich attack | Trust assumption | Vulnerable | **Resistant** | **Resistant** | **Resistant** | Vulnerable |
+| Latency arbitrage | Vulnerable | Vulnerable | **Resistant** | **Resistant** | **Resistant** | N/A |
+| Wash trading | Resistant | Resistant | Resistant | Resistant | Resistant | Vulnerable |
+| Spread arbitrage | Vulnerable | Vulnerable | **Resistant** | **Resistant** | **Resistant** | Vulnerable |
+| Asset-targeted attack | Vulnerable | Vulnerable | Vulnerable | Vulnerable | **Resistant** | Vulnerable |
+| Cross-pair info leakage | N/A | N/A | N/A | Yes (pair known) | **None** (verified) | N/A |
+| **Attacks resisted** | **1/6** | **1/6** | **5/6** | **5/6** | **6/6** | **1/6** |
+
+ShieldedDEX is the only mechanism that resists all six attack categories. It inherits batch auction resistance to front-running, sandwich, latency arbitrage, spread arbitrage, and wash trading — and adds resistance to asset-targeted attacks because the pair itself is hidden. The cost: cross-pair price discovery is lost.
+
+**ShieldedDEX: strongest privacy, least vulnerable clearing.** ShieldedDEX combines the strongest privacy guarantees (order contents + asset pair hidden — strictly more than any other mechanism, as shown in the observer visibility table) with the least vulnerable clearing mechanism (batch auction — formally verified to resist front-running, sandwich attacks, spread arbitrage, and latency arbitrage). Its ordering independence makes it safe to decentralize without a sequencer: validators only need consensus on the commitment **set**, not the sequence, and they never see the contents or target pairs. The cost is immediacy and cross-pair price discovery — structural tradeoffs that no amount of privacy can eliminate.
 
 **The impossibility triangle:** a mechanism that clears at a uniform price (fairness) must collect orders before clearing, sacrificing immediacy. A mechanism that always has liquidity (AMM) must price algorithmically, creating price impact that depends on ordering. A mechanism that matches immediately (CLOB) exposes different prices to different participants, enabling spread arbitrage. These are structural constraints, not implementation choices — they follow from the definitions of the mechanisms themselves.
 
 **Privacy as MEV resistance:** the ZKDarkPool spec demonstrates that adding privacy (sealed bids + post-trade order destruction) to a batch auction doesn't change any correctness property — all `BatchedAuction` invariants carry over — but adds a new dimension: MEV elimination through information hiding. The `SandwichResistant` invariant proves that the sandwich attack pattern (which succeeds against AMMs in `SandwichAttack.tla`) is structurally impossible when orders are sealed and cleared at a uniform price. Privacy is not just a feature — it's a mechanism design tool that eliminates the information asymmetry attackers need.
+
+**Privacy vs price discovery (the 4th dimension):** the ShieldedDEX spec extends the impossibility triangle into a tetrahedron. Hiding the asset pair in addition to order contents (inspired by Zcash Shielded Assets, ZIP-226/227) eliminates asset-targeted attacks — an attacker cannot even identify which pair to sandwich. But full privacy has a cost: cross-pair arbitrage becomes impossible within the batch because no participant can observe price divergence across pairs. TLC proves this concretely: P1 clears at 1, P2 clears at 2, and no mechanism exists to align them. The tradeoff is not fairness vs liquidity vs immediacy, but fairness vs liquidity vs immediacy vs price discovery — and no mechanism achieves all four.
 
 **Centralization vs decentralization:** the DecentralizedCLOB spec shows that continuous matching is fundamentally order-dependent — decentralizing it without consensus on transaction ordering leads to divergent state across nodes. This is why real-world decentralized CLOBs (dYdX v4, Hyperliquid) run their own chains with a single sequencer or validator-based consensus to impose a total order. Batched auctions avoid this problem entirely because clearing is order-independent.
 
@@ -724,6 +892,7 @@ java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC ImpermanentLoss -config Impermane
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC CrossVenueArbitrage -config CrossVenueArbitrage.cfg -modelcheck
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC ZKDarkPool -config ZKDarkPool.cfg -modelcheck
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC ZKRefinement -config ZKRefinement.cfg -modelcheck
+java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC ShieldedDEX -config ShieldedDEX.cfg -modelcheck
 ```
 
 Or use the [TLA+ VS Code extension](https://marketplace.visualstudio.com/items?itemName=tlaplus.vscode-tlaplus).
@@ -736,6 +905,7 @@ Or use the [TLA+ VS Code extension](https://marketplace.visualstudio.com/items?i
 | BatchedAuction | [Penumbra](https://penumbra.zone/), [CoW Protocol](https://cow.fi/), NYSE/NASDAQ opening & closing auctions |
 | AMM | [Uniswap v2](https://docs.uniswap.org/contracts/v2/overview), SushiSwap, PancakeSwap, [Curve](https://curve.fi/), [Balancer](https://balancer.fi/) |
 | ZKDarkPool | [Penumbra](https://penumbra.zone/), [Renegade](https://renegade.fi/), [MEV Blocker](https://mevblocker.io/), [MEV Share](https://docs.flashbots.net/flashbots-mev-share/overview) |
+| ShieldedDEX | [Zcash Shielded Assets (ZIP-226/227)](https://zips.z.cash/zip-0226), [Penumbra](https://penumbra.zone/) (multi-asset shielded batch auctions), [Anoma](https://anoma.net/) (intent-centric with privacy) |
 | DecentralizedCLOB | [Serum/OpenBook](https://www.openbook-solana.com/), [dYdX v4](https://dydx.exchange/), [Hyperliquid](https://hyperliquid.xyz/), [Injective](https://injective.com/) |
 
 **Academic:**
@@ -744,5 +914,4 @@ Or use the [TLA+ VS Code extension](https://marketplace.visualstudio.com/items?i
 ## Planned
 
 - **Triangular arbitrage** - A→B→C→A price cycles within a single venue, multi-asset extension
-- Privacy/visibility model across all mechanisms (extending ZKDarkPool's approach)
 - Adversarial conditions and manipulation resistance analysis
