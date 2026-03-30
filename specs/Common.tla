@@ -1,6 +1,10 @@
 ---- MODULE Common ----
 EXTENDS Naturals, Sequences
 
+\* Shared definitions used across all mechanism and attack specifications.
+\* Provides order/trade tuple accessors, sequence manipulation helpers,
+\* and arithmetic utilities. Imported via EXTENDS Common.
+
 \* ── Order field accessors ──
 \* Order tuple: <<trader, price, quantity, orderId, time>>
 OTrader(o)  == o[1]

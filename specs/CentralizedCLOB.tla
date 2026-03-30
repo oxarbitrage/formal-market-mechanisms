@@ -1,6 +1,16 @@
 ---- MODULE CentralizedCLOB ----
 EXTENDS TLC, Common
 
+\* Continuous limit order book with a single matching engine.
+\* Orders are matched immediately on arrival using price-time priority,
+\* executing at the resting order's (ask) price. Models traditional
+\* exchanges (NYSE, NASDAQ, CME) and centralized crypto exchanges
+\* (Binance, Coinbase).
+\*
+\* Key verified properties: price improvement, positive quantities,
+\* no self-trades, conservation of assets. Non-uniform pricing and
+\* ordering dependence are demonstrated via TLC counterexamples.
+
 CONSTANTS Traders, Prices, Quantities, MaxTime, MaxOrders
 
 VARIABLES

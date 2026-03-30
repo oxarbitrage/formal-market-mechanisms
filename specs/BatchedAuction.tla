@@ -1,6 +1,15 @@
 ---- MODULE BatchedAuction ----
 EXTENDS TLC, Common, FiniteSets
 
+\* Discrete-time batch auction (frequent batch auction / call auction).
+\* Orders are collected into batches, then cleared at a single uniform
+\* price that maximizes traded volume. Models Penumbra, CoW Protocol,
+\* and NYSE/NASDAQ opening & closing auctions.
+\*
+\* Key verified properties: uniform clearing price, ordering independence
+\* (same orders in any sequence produce the same result), no spread
+\* arbitrage, price improvement, and no self-trades.
+
 CONSTANTS Traders, Prices, Quantities, MaxBatches, MaxOrdersPerBatch
 
 VARIABLES

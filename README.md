@@ -15,7 +15,7 @@ TLA+ specifications that formally verify and compare market mechanisms — CLOBs
 
 ## Mechanisms
 
-### CentralizedCLOB
+### CentralizedCLOB  <sub>[spec](specs/CentralizedCLOB.tla) · [config](specs/CentralizedCLOB.cfg)</sub>
 
 A continuous limit order book with a single matching engine. Orders are matched immediately using price-time priority. This models traditional exchanges like NYSE, NASDAQ, and centralized crypto exchanges (Binance, Coinbase).
 
@@ -54,7 +54,7 @@ Each order is matched **immediately** on arrival. The trade executes at the rest
 | ConservationOfAssets | Invariant | Trade log is consistent across traders |
 | EventualMatching | Liveness | Crossed books between different traders are eventually resolved |
 
-### BatchedAuction
+### BatchedAuction  <sub>[spec](specs/BatchedAuction.tla) · [config](specs/BatchedAuction.cfg)</sub>
 
 A periodic auction that collects orders over a batch window, then clears all at a single uniform price that maximizes traded volume. This models systems like [Penumbra](https://penumbra.zone/) (sealed-bid batch auctions with privacy on Cosmos), [CoW Protocol](https://cow.fi/) (batch auctions for MEV protection), and NYSE/NASDAQ opening/closing auctions. The academic foundation is Budish, Cramton, and Shim's "[The High-Frequency Trading Arms Race](https://faculty.chicagobooth.edu/eric.budish/research/HFT-FrequentBatchAuctions.pdf)" (2015), which proposes frequent batch auctions to eliminate the latency arms race.
 
@@ -102,7 +102,7 @@ Orders accumulate during the **collection phase** without matching. When the bat
 | NoSpreadArbitrage | Invariant | No price difference to exploit within a batch |
 | EventualClearing | Liveness | Every batch eventually clears |
 
-### AMM (Automated Market Maker)
+### AMM (Automated Market Maker)  <sub>[spec](specs/AMM.tla) · [config](specs/AMM.cfg)</sub>
 
 A constant-product market maker (x*y=k). No order book — traders swap against a liquidity pool. Price is determined by the reserve ratio, not by matching orders. This models [Uniswap v2](https://docs.uniswap.org/contracts/v2/overview) and its forks (SushiSwap, PancakeSwap). Related designs include [Curve](https://curve.fi/) (StableSwap invariant) and [Balancer](https://balancer.fi/) (generalized weighted pools).
 
@@ -141,7 +141,7 @@ Traders swap tokens against the pool. The output amount is computed from the con
 | PositiveSwapOutput | Invariant | Every swap produces output > 0 |
 | ConservationOfTokens | Invariant | Total tokens in system (pool + all traders) is constant |
 
-### ImpermanentLoss
+### ImpermanentLoss  <sub>[spec](specs/ImpermanentLoss.tla) · [config](specs/ImpermanentLoss.cfg)</sub>
 
 Models the economic risk for liquidity providers (LPs) in a constant-product AMM. An LP deposits tokens into the pool, external traders swap against it (moving the price), and the LP's position is compared to simply holding the original tokens. This is the fundamental risk of providing liquidity on [Uniswap](https://docs.uniswap.org/contracts/v2/concepts/advanced-topics/understanding-returns), and why protocols offer "liquidity mining" rewards to compensate LPs.
 
@@ -181,7 +181,7 @@ The loss follows from the AM-GM inequality: any change in the price ratio causes
 |---|---|
 | NoImpermanentLoss | LP's withdrawal value >= holding value at current price (FAILS: one swap of 8A causes IL despite fee income) |
 
-### SandwichAttack
+### SandwichAttack  <sub>[spec](specs/SandwichAttack.tla) · [config](specs/SandwichAttack.cfg)</sub>
 
 Models the canonical [MEV](https://ethereum.org/en/developers/docs/mev/) (Maximal Extractable Value) attack against a constant-product AMM. An adversary who controls transaction ordering (block builder, sequencer) can extract value from other traders by sandwiching their swaps. This is the primary attack vector against AMMs like Uniswap, and the main motivation behind MEV-resistant designs like [Flashbots](https://www.flashbots.net/), [Penumbra](https://penumbra.zone/), and [CoW Protocol](https://cow.fi/).
 
@@ -230,7 +230,7 @@ The attack works because AMM pricing is **path-dependent**: the adversary's fron
 | NoPriceDegradation | Victim gets at least as much output as without the attack (FAILS: 7B vs 9B baseline) |
 | NoAdversaryProfit | Adversary does not end up with more tokens than they started (FAILS: spent 9A, got back 10A) |
 
-### LatencyArbitrage
+### LatencyArbitrage  <sub>[spec](specs/LatencyArbitrage.tla) · [config](specs/LatencyArbitrage.cfg)</sub>
 
 Models latency arbitrage between two CLOBs — the core mechanism from [Budish, Cramton, and Shim (2015)](https://faculty.chicagobooth.edu/eric.budish/research/HFT-FrequentBatchAuctions.pdf). When a public signal moves the "true" price, one exchange updates faster than the other. A fast trader snipes the stale quote on the slow exchange before the market maker can update. This models the HFT arms race between NYSE and BATS/IEX, cross-exchange crypto arbitrage (Binance vs Coinbase), and cross-L2 latency (Arbitrum vs Optimism).
 
@@ -277,7 +277,7 @@ Budish et al.'s argument: continuous limit order books create an arms race where
 | NoArbitrageProfit | No one profits from being faster (FAILS: arb profits 10 by buying at stale 11, selling at 13) |
 | MarketMakerNotHarmed | Market makers not harmed by latency (FAILS: MM loses 10 on stale fills = adverse selection) |
 
-### FrontRunning
+### FrontRunning  <sub>[spec](specs/FrontRunning.tla) · [config](specs/FrontRunning.cfg)</sub>
 
 Models front-running on a CLOB — the CLOB analog of `SandwichAttack` (which targets AMMs). An adversary who controls transaction ordering consumes cheap sell-side liquidity before a victim's buy order, forcing the victim to fill at worse prices. This models HFT latency arbitrage, block builder front-running, and validator front-running in on-chain CLOBs like [dYdX](https://dydx.exchange/) and [Serum/OpenBook](https://www.openbook-solana.com/).
 
@@ -319,7 +319,7 @@ Both are structurally impossible in `BatchedAuction`/`ZKDarkPool` due to `Orderi
 | NoPriceDegradation | Victim pays no more than without front-running (FAILS: pays 40 vs 35 baseline = +14%) |
 | NoAdversaryProfit | Adversary cannot profit from information advantage (FAILS: bought at 10, market at ~13.3) |
 
-### CrossVenueArbitrage
+### CrossVenueArbitrage  <sub>[spec](specs/CrossVenueArbitrage.tla) · [config](specs/CrossVenueArbitrage.cfg)</sub>
 
 Models arbitrage between a CLOB and an AMM trading the same asset. When prices diverge, an arbitrageur buys on the cheap venue and sells on the expensive one, profiting from the difference. Unlike sandwich attacks, this is "productive" MEV — it aligns prices across venues. But the profit comes at the expense of the AMM LP (impermanent loss). This models the CEX/DEX arbitrage that dominates Ethereum MEV: bots like [Wintermute](https://www.wintermute.com/) and [Jump](https://www.jumptrading.com/) continuously arbitrage between centralized exchanges and on-chain AMMs.
 
@@ -371,7 +371,7 @@ The arbitrageur keeps trading until the AMM price converges to the CLOB range �
 | NoArbitrageProfit | Arbitrageur does not profit (FAILS: buys 1A for 5B on CLOB, sells on AMM for 9B = +4B profit) |
 | NoLPValueLoss | AMM LP value is not harmed (FAILS: arb trades cause IL, same formula as ImpermanentLoss) |
 
-### WashTrading
+### WashTrading  <sub>[spec](specs/WashTrading.tla) · [config](specs/WashTrading.cfg)</sub>
 
 Models wash trading on an AMM: a manipulator trades with themselves (swap A→B then B→A) to inflate reported volume. On a CLOB, self-trade prevention blocks this. On an AMM, there is no counterparty identity — any address can swap. The manipulator loses only fees, but the volume appears genuine on-chain. Estimated 40-70% of DEX volume is wash trading, used to game token listings, airdrops, and liquidity mining rewards.
 
@@ -418,7 +418,7 @@ sequenceDiagram
 | NoManipulatorLoss | Manipulator doesn't lose value (FAILS: 1 round-trip costs 1A in fees, 30A → 29A) |
 | VolumeReflectsActivity | Volume = 0 when net position unchanged (FAILS: 19 volume units with zero net change) |
 
-### ZKDarkPool
+### ZKDarkPool  <sub>[spec](specs/ZKDarkPool.tla) · [config](specs/ZKDarkPool.cfg)</sub>
 
 A sealed-bid batch auction with commit-reveal protocol — also known as a **hidden batch auction**, **encrypted batch auction**, or **sealed-bid batch auction**. This is not a different clearing mechanism from `BatchedAuction`: the clearing logic is identical (uniform price, maximum volume). The difference is an information-hiding layer: orders are sealed during collection and destroyed after clearing. All `BatchedAuction` invariants pass unchanged here, confirming they are structurally the same mechanism — privacy adds MEV resistance on top without altering correctness.
 
@@ -475,7 +475,7 @@ Three phases enforce privacy structurally:
 | PostTradeOrdersDestroyed | Invariant | After clearing, individual orders are destroyed (only clearing price + fills retained) |
 | EventualClearing | Liveness | If the batch is ready to clear, it eventually clears |
 
-### ShieldedDEX
+### ShieldedDEX  <sub>[spec](specs/ShieldedDEX.tla) · [config](specs/ShieldedDEX.cfg)</sub>
 
 A multi-asset shielded exchange where even the **asset pair** is hidden — not just order contents. Inspired by [Zcash Shielded Assets (ZIP-226/227)](https://zips.z.cash/zip-0227): custom tokens issued within the shielded pool inherit Zcash's privacy guarantees, making transfers of different asset types indistinguishable on-chain. Also related to [Penumbra](https://penumbra.zone/)'s multi-asset shielded pools and [Anoma](https://anoma.net/)'s intent-centric privacy architecture.
 
@@ -605,7 +605,7 @@ The new tradeoff: **privacy vs price discovery**. Full asset-type privacy means 
 |---|---|
 | CrossPairPriceConsistency | Clearing prices across pairs should be consistent (FAILS: P1 clears at 1, P2 clears at 2 — divergence with no correction mechanism because pair activity is hidden) |
 
-### ZKRefinement
+### ZKRefinement  <sub>[spec](specs/ZKRefinement.tla) · [config](specs/ZKRefinement.cfg)</sub>
 
 Formal refinement proof: ZKDarkPool implements BatchedAuction. This module instantiates `BatchedAuction` with a variable mapping from `ZKDarkPool`'s state, then verifies that all BatchedAuction invariants hold under the mapping. This is the TLA+ native way to prove that two specifications describe the same mechanism.
 
@@ -630,7 +630,7 @@ Formal refinement proof: ZKDarkPool implements BatchedAuction. This module insta
 
 This confirms that privacy (sealed bids + post-trade order destruction) is a pure addition — it does not alter the clearing mechanism in any way. ZKDarkPool = BatchedAuction + information hiding.
 
-### DecentralizedCLOB
+### DecentralizedCLOB  <sub>[spec](specs/DecentralizedCLOB.tla) · [config](specs/DecentralizedCLOB.cfg)</sub>
 
 Multiple nodes each maintain independent order books. Orders are submitted to a global pool and delivered to nodes in nondeterministic order — modeling network propagation delay. Each node runs the same price-time priority matching engine as `CentralizedCLOB`. This models on-chain order books like [Serum/OpenBook](https://www.openbook-solana.com/) (Solana), [dYdX v4](https://dydx.exchange/) (Cosmos app-chain where validators run matching), [Hyperliquid](https://hyperliquid.xyz/) (L1 with on-chain order book), and [Injective](https://injective.com/) (Cosmos chain).
 
@@ -869,7 +869,7 @@ ShieldedDEX is the only mechanism that resists all six attack categories. It inh
 
 ## Shared
 
-`Common.tla` contains reusable definitions across all mechanisms:
+[`Common.tla`](specs/Common.tla) contains reusable definitions across all mechanisms:
 - Order tuple accessors: `OTrader`, `OPrice`, `OQty`, `OId`, `OTime`
 - Trade tuple accessors: `TBuyer`, `TSeller`, `TPrice`, `TQty`, `TTime`, `TBuyLimit`, `TSellLimit`
 - Sequence helpers: `RemoveAt`, `ReplaceAt`
