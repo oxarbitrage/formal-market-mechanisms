@@ -4,7 +4,29 @@
 
 A multi-asset shielded exchange where even the **asset pair** is hidden — not just order contents. Inspired by [Zcash Shielded Assets (ZIP-226/227)](https://zips.z.cash/zip-0227): custom tokens issued within the shielded pool inherit Zcash's privacy guarantees, making transfers of different asset types indistinguishable on-chain. Also related to [Penumbra](https://penumbra.zone/)'s multi-asset shielded pools and [Anoma](https://anoma.net/)'s intent-centric privacy architecture.
 
-This is a **genuinely new mechanism type**, not a formalization of an existing design. It extends `ZKDarkPool` from single-pair to multi-pair with asset-type privacy.
+This is a **genuinely new mechanism type**, not a formalization of an existing design. It extends [ZKDarkPool](zk-dark-pool.md) from single-pair to multi-pair with asset-type privacy.
+
+## How it extends ZKDarkPool
+
+ZKDarkPool operates on a **single trading pair** — one buy book and one sell book. Everyone knows which market they're in; the privacy covers order contents (price, quantity, identity) but not the pair itself.
+
+ShieldedDEX maintains **one order book per pair**. With two pairs (e.g., ZEC/USDC and ETH/USDC), the state looks like:
+
+```
+ZKDarkPool (single pair):
+  buyOrders  = <<order1, order2>>
+  sellOrders = <<order3>>
+
+ShieldedDEX (multi-pair):
+  buyOrders  = [ZEC/USDC ↦ <<order1>>,  ETH/USDC ↦ <<order3>>]
+  sellOrders = [ZEC/USDC ↦ <<order2>>,  ETH/USDC ↦ <<order4>>]
+```
+
+The clearing algorithm is identical — uniform price, maximum volume — but parameterized per pair. Each pair clears independently with its own price (`CrossPairIsolation` verified).
+
+The privacy extension: when a trader submits a commitment, the **pair assignment is hidden**. An observer sees 4 commitments arrive but cannot tell which pair each targets — they could all be for the same pair, or spread across pairs. After clearing, all order books across all pairs are destroyed. The observer never learns which pairs were active, how many orders each received, or at what prices they cleared.
+
+This is what makes asset-targeted attacks impossible: you can't sandwich a specific pair if you can't identify which pair to target.
 
 ## Implementation status
 
@@ -29,13 +51,13 @@ Possible paths to implementation:
 |---|---|---|---|
 | Asset pair hidden | No (public markets) | Partial (solver sees) | **Yes** |
 | Matching method | Deterministic batch | Solver-based | Deterministic batch |
-| Trusted party needed | No | **Yes (solver)** | No |
+| Solver required | No | **Yes** (permissionless, competitive) | No |
 | Asset-targeted attacks | Vulnerable (pair known) | Solver-dependent | **Resistant** (pair hidden) |
 | Formally verified | No | No | **Yes (TLC, 48,065 states)** |
 | Cross-pair isolation proven | No | No | **Yes** (`CrossPairIsolation` invariant) |
 | Price discovery cost quantified | No | No | **Yes** (`CrossPairPriceConsistency` counterexample) |
 
-Penumbra hides order contents but not the pair — an attacker can see which markets are active and target them. Anoma hides intents but delegates matching to solvers who must see (or partially see) the intents to match them. ShieldedDEX occupies a design point neither system has explored: **pair-hiding with solver-free deterministic clearing**.
+Penumbra hides the swapper's identity but the trading pair and amounts are public (the Swap action includes the `TradingPair` in cleartext). An attacker can see which markets are active and target them. Anoma delegates matching to solvers who need to see intent contents to construct valid solutions — private solving is a [research goal](https://anoma.net/research/privacy-in-tents), not a deployed feature. The solver role is permissionless (anyone can run one), but a solver is structurally required for trading. ShieldedDEX occupies a design point neither system has explored: **pair-hiding with solver-free deterministic clearing**.
 
 ## What's novel (and what isn't)
 
