@@ -31,3 +31,5 @@ But these are honest tradeoffs. You know what you're giving up and what you're g
 ## The work
 
 We built formal specifications for seven market mechanisms and six attack models, verified with TLC (a model checker for TLA+). Every claim above is backed by a mathematical proof or a concrete counterexample — not an opinion. The full specifications, proofs, and a readable book are open source.
+
+[Read the book](https://oxarbitrage.github.io/formal-market-mechanisms/) · [Browse the specs](https://github.com/oxarbitrage/formal-market-mechanisms/tree/main/specs)
