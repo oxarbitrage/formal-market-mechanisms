@@ -18,6 +18,26 @@ ShieldedAtomicSwap replaces the hash reveal with a ZK proof of preimage knowledg
 | **Cross-chain** | Single chain/shielded pool | **Cross-chain native** |
 | **Zcash changes** | Matching engine (new ZIP) | HTLC in shielded pool (new ZIP) |
 
+## Use cases
+
+ShieldedAtomicSwap is not an exchange — it's **private settlement** between two parties who already agreed on terms. It trades price discovery for trustless cross-chain execution without linkability.
+
+**Where ShieldedAtomicSwap wins:**
+
+- **Cross-chain swaps without bridges** — bridges are the #1 hack target in crypto. Atomic swaps eliminate the bridge entirely — no custodian, no multisig, no wrapped tokens. Each party locks on their own chain and claims with a ZK proof.
+- **OTC trades between known counterparties** — two parties who already agreed on a price (e.g., institutional OTC, treasury-to-treasury). They don't need price discovery — they need private, trustless settlement.
+- **Privacy-preserving cross-chain migration** — moving value from one chain to another without leaving a linkable trail. Standard HTLCs leak the link via the shared hash. Shielded swaps break that link.
+- **Small P2P trades** — no minimum batch size, no liquidity pool needed, no fees beyond gas. Two people can swap any amount directly.
+
+**Where other mechanisms are better:**
+
+| Need | Better choice | Why |
+|---|---|---|
+| Price discovery | ShieldedDEX or AMM | Atomic swap price is whatever you negotiate |
+| Many counterparties | ShieldedDEX | Atomic swap is strictly 1-to-1 |
+| No liveness requirement | ShieldedDEX | Bob must be online to claim |
+| Single-chain trading | AMM or ShieldedDEX | Atomic swap is designed for cross-chain |
+
 ## Protocol
 
 ```mermaid

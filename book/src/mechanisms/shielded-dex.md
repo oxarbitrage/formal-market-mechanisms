@@ -48,6 +48,27 @@ The clearing mechanism itself is a batch auction applied per-pair — not a new 
 
 This spec formalizes the mechanism design that Zcash's ZSA infrastructure **makes possible** — a blueprint for what could be built once the protocol supports it.
 
+## Use cases
+
+ShieldedDEX is not better for everyone — it trades immediacy and price discovery for privacy and MEV resistance. It's suited for scenarios where **what you're trading** is as sensitive as **how much**.
+
+**Where ShieldedDEX wins:**
+
+- **Institutional portfolio rebalancing** — a fund selling token X for token Y doesn't want the market to know which pairs they're active in. On Penumbra, observers see "someone is trading X/Y" and can front-run that market. On ShieldedDEX, they see only an opaque commitment.
+- **DAO treasury operations** — a DAO diversifying from token A to token B. If the pair is visible, the market front-runs the diversification before the DAO can execute.
+- **Jurisdictional sensitivity** — in some contexts, *which* asset you trade reveals more than the amount. Pair-hiding prevents asset-targeted surveillance.
+- **MEV-free trading without trusting anyone** — Anoma hides intents but the solver sees them. Flashbots MEV Share requires trusting the builder. ShieldedDEX has no trusted party — deterministic clearing means validators verify correctness without seeing contents or pairs.
+
+**Where other mechanisms are better:**
+
+| Need | Better choice | Why |
+|---|---|---|
+| Trade immediately | CLOB or AMM | ShieldedDEX requires waiting for the batch |
+| Always-available liquidity | AMM | ShieldedDEX batches can be empty |
+| Hide order contents only (pair doesn't matter) | Penumbra / ZKDarkPool | Simpler, already deployed |
+
+The short version: if you only need to hide *how much* you're trading, Penumbra already works. ShieldedDEX is for when you need to hide *what* you're trading.
+
 ## Mechanism diagram
 
 ```mermaid
