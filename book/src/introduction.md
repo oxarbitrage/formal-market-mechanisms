@@ -2,6 +2,18 @@
 
 TLA+ specifications that formally verify and compare market mechanisms — CLOBs, batch auctions, AMMs, and privacy-preserving dark pools — across correctness, fairness, MEV resistance, and decentralizability.
 
+```mermaid
+graph TD
+    subgraph Exchange mechanisms
+        CLOB[CentralizedCLOB<br/>immediacy] --> DCLOB[DecentralizedCLOB<br/>multi-node]
+        BA[BatchedAuction<br/>fairness] -->|+ sealed bids| ZK[ZKDarkPool<br/>privacy]
+        ZK -->|+ pair hiding| SDEX[ShieldedDEX<br/>full privacy]
+        BA -.->|refinement proof| ZK
+    end
+    AMM[AMM<br/>always-on liquidity<br/>comparison baseline]
+    SAS[ShieldedAtomicSwap<br/>P2P settlement, no coordinator<br/>cross-chain native]
+```
+
 **Key results (all TLC-verified, not just argued):**
 - An **impossibility triangle** between fairness, liquidity, and immediacy — no mechanism can provide all three
 - Batch auctions are **safe to decentralize** (OrderingIndependence); CLOBs are not (TLC counterexample: same orders → different trades at different nodes)
