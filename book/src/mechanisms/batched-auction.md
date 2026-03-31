@@ -48,3 +48,5 @@ Orders accumulate during the **collection phase** without matching. When the bat
 | OrderingIndependence | Invariant | Clearing result matches the deterministic clearing price regardless of submission order |
 | NoSpreadArbitrage | Invariant | No price difference to exploit within a batch |
 | EventualClearing | Liveness | Every batch eventually clears |
+
+All 6 invariants above are proven to carry over unchanged when privacy is added — see [ZKRefinement](../proofs/zk-refinement.md).
