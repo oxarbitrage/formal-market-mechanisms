@@ -2,20 +2,11 @@
 
 The formal verification reveals a fundamental three-way trade-off between **fairness**, **liquidity**, and **immediacy**. No mechanism dominates — each one guarantees properties the others provably cannot.
 
-```mermaid
-graph TD
-    F["Fairness"]
-    L["Liquidity"]
-    I["Immediacy"]
-
-    F --- BA["BatchedAuction<br/>Uniform price, order-independent<br/>No always-on liquidity"]
-    F --- ZKD["ZKDarkPool<br/>Batch + sealed bids + privacy<br/>Sandwich resistant"]
-    F --- SDE["ShieldedDEX<br/>Pair hidden, cross-pair isolation<br/>No price discovery"]
-    L --- AMM_N["AMM<br/>Always-available liquidity<br/>Price impact, ordering dependent"]
-    I --- CLOB_N["CentralizedCLOB<br/>Immediate matching<br/>Non-uniform, ordering dependent"]
-    I --- DCLOB_N["DecentralizedCLOB<br/>Per-node matching<br/>No cross-node consensus"]
-
-```
+| Vertex | Mechanisms | What they sacrifice |
+|---|---|---|
+| **Fairness** | BatchedAuction, ZKDarkPool, ShieldedDEX | Immediacy, always-on liquidity |
+| **Liquidity** | AMM | Uniform pricing, ordering independence |
+| **Immediacy** | CentralizedCLOB, DecentralizedCLOB | Uniform pricing, cross-node consensus |
 
 ## What TLC proves (not just argues)
 
