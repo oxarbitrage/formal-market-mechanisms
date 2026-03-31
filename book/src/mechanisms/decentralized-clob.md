@@ -31,8 +31,6 @@ graph LR
 
     T1 -.- D["Different delivery order<br/>→ different trades"]
     T2 -.- D
-
-    style D fill:#fee
 ```
 
 The core problem: without consensus on ordering, different nodes process the same orders in different sequences and **arrive at different results**. TLC proves this is not just a theoretical concern — it finds concrete traces where the same set of orders produces different trades (or no trades at all) at different nodes.

@@ -14,9 +14,5 @@
 
 ## Academic
 
-- Budish, Cramton, Shim — "[The High-Frequency Trading Arms Race](https://faculty.chicagobooth.edu/eric.budish/research/HFT-FrequentBatchAuctions.pdf)" (2015) — proposes frequent batch auctions to eliminate latency arbitrage
+- Budish, Cramton, Shim — "[The High-Frequency Trading Arms Race](https://econweb.umd.edu/~sweeting/hft-arms-race.pdf)" (2015) — proposes frequent batch auctions to eliminate latency arbitrage
 
-## Planned
-
-- **Triangular arbitrage** - A→B→C→A price cycles within a single venue, multi-asset extension
-- Adversarial conditions and manipulation resistance analysis

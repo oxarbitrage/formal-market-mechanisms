@@ -34,13 +34,6 @@ sequenceDiagram
 - **CLOB resistance**: `NoSelfTrades` invariant in CentralizedCLOB prevents wash trading
 - **Batch auction resistance**: `NoSelfTrades` in BatchedAuction/ZKDarkPool also blocks self-trades
 
-## Verified properties (pool correctness)
-
-| Property | Type | Description |
-|---|---|---|
-| PositiveReserves | Invariant | Pool reserves always > 0 |
-| ConstantProductInvariant | Invariant | `reserveA * reserveB >= initial k` |
-
 ## Wash trading properties (expected to fail)
 
 Add as INVARIANT to see counterexamples:

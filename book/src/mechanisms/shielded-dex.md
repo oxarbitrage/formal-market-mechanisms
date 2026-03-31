@@ -81,16 +81,6 @@ sequenceDiagram
     Note over O: cross-pair prices diverged<br/>(1 vs 2) but no one can<br/>see it to arbitrage
 ```
 
-## What's new vs ZKDarkPool
-
-| Property | ZKDarkPool | ShieldedDEX |
-|---|---|---|
-| Order contents hidden | Yes | Yes |
-| Asset pair hidden | **No** | **Yes** |
-| Trade vs transfer distinguishable | Yes (batch event visible) | **Harder** (multi-pair obfuscation) |
-| Cross-pair arbitrage possible | N/A (single pair) | **No** (pairs hidden) |
-| Attacker can target specific pair | Yes (pair known) | **No** (pair hidden) |
-
 ## Observer information visibility
 
 What an on-chain observer learns:

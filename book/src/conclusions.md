@@ -4,53 +4,29 @@ The formal verification reveals a fundamental three-way trade-off between **fair
 
 ```mermaid
 graph TD
-    F["Fairness<br/>(uniform price, order-independent)"]
-    L["Liquidity<br/>(always available)"]
-    I["Immediacy<br/>(instant execution, price improvement)"]
+    F["Fairness"]
+    L["Liquidity"]
+    I["Immediacy"]
 
-    F --- BA["BatchedAuction<br/>✓ Uniform pricing<br/>✓ No spread arbitrage<br/>✓ Ordering independence<br/>✓ Safe to decentralize<br/>✗ No always-on liquidity<br/>✗ Must wait for batch"]
-    F --- ZKD["ZKDarkPool<br/>✓ All BatchedAuction properties<br/>✓ Pre-trade privacy (sealed bids)<br/>✓ Post-trade privacy (orders destroyed)<br/>✓ Sandwich resistant (verified)<br/>✗ No always-on liquidity<br/>✗ Must wait for batch"]
-    F --- SDE["ShieldedDEX<br/>✓ All ZKDarkPool properties (per-pair)<br/>✓ Asset-type privacy (pair hidden)<br/>✓ Cross-pair isolation (verified)<br/>✗ No always-on liquidity<br/>✗ Must wait for batch<br/>✗ No cross-pair price discovery"]
-    L --- AMM_N["AMM<br/>✓ Always-available liquidity<br/>✓ Constant product guaranteed<br/>✗ Price impact per swap<br/>✗ Non-uniform pricing<br/>✗ Ordering dependent"]
-    I --- CLOB_N["CentralizedCLOB<br/>✓ Immediate matching<br/>✓ Price improvement<br/>✗ Non-uniform pricing<br/>✗ Ordering dependent<br/>✗ Liquidity depends on book"]
-    I --- DCLOB_N["DecentralizedCLOB<br/>✓ Immediate matching (per-node)<br/>✓ Price improvement (per-node)<br/>✗ No cross-node consensus<br/>✗ Delivery order changes outcomes<br/>✗ Requires sequencer/consensus"]
+    F --- BA["BatchedAuction<br/>Uniform price, order-independent<br/>No always-on liquidity"]
+    F --- ZKD["ZKDarkPool<br/>Batch + sealed bids + privacy<br/>Sandwich resistant"]
+    F --- SDE["ShieldedDEX<br/>Pair hidden, cross-pair isolation<br/>No price discovery"]
+    L --- AMM_N["AMM<br/>Always-available liquidity<br/>Price impact, ordering dependent"]
+    I --- CLOB_N["CentralizedCLOB<br/>Immediate matching<br/>Non-uniform, ordering dependent"]
+    I --- DCLOB_N["DecentralizedCLOB<br/>Per-node matching<br/>No cross-node consensus"]
 
-    style BA fill:#efe
-    style AMM_N fill:#eef
-    style CLOB_N fill:#fee
-    style ZKD fill:#dfd
-    style SDE fill:#cfc
-    style DCLOB_N fill:#fdd
 ```
 
 ## What TLC proves (not just argues)
 
 | Conclusion | Evidence |
 |---|---|
-| Batched auctions eliminate spread arbitrage | `NoSpreadArbitrage` and `UniformClearingPrice` hold across all reachable states |
-| Submission order cannot affect batch outcomes | `OrderingIndependence` verified — same orders in any sequence produce same clearing price |
-| Batch auctions are safe to decentralize | `OrderingIndependence` means validators only need consensus on the order **set**, not sequence (Penumbra, CoW Protocol) |
-| CLOBs produce different prices for the same set of orders | TLC counterexample: two trades at prices 1 and 2 from identical order set |
-| Decentralizing a CLOB breaks consensus | TLC counterexample: same orders delivered in different sequence → one node executes a trade, the other executes none |
-| AMM price depends on swap ordering and size | TLC counterexample: same input amounts yield different output amounts depending on reserve state |
-| CLOB latency differences enable sniping profits | TLC counterexample: price jumps +3, arb buys 5 at stale ask 11 and sells at new bid 13 = profit 10; MM bears the loss (zero-sum verified) |
-| Batch auctions eliminate latency arbitrage (Budish et al.) | `OrderingIndependence` means there are no stale quotes to snipe — all orders clear at the same price regardless of timing |
-| CLOBs are vulnerable to front-running | TLC counterexample: adversary buys 1 unit at 10, victim pays 40 instead of 35 (14% degradation); adversary profits from buying below market |
-| AMMs are vulnerable to wash trading | TLC counterexample: 1 round-trip generates 19 units of volume at cost of 1A in fees; no identity check to prevent self-trading |
-| AMMs are vulnerable to sandwich attacks | TLC counterexample: adversary extracts 1A profit while victim loses 2B (22% worse output) |
-| Batch auctions resist sandwich attacks | `OrderingIndependence` + `UniformClearingPrice` — no price to move between trades |
-| AMM LPs face impermanent loss from any price movement | TLC counterexample: single swap of 8A causes IL despite fees growing k from 10,000 to 10,044 |
-| Cross-venue arbitrage profits at LP's expense | TLC counterexample: arb buys A on CLOB for 5B, sells on AMM for 9B; LP bears the IL. Price converges (verified: `PriceNotDiverging`) |
-| ZK dark pools inherit all batch auction guarantees | `UniformClearingPrice`, `OrderingIndependence`, `NoSpreadArbitrage` all verified for ZKDarkPool (same clearing logic) |
-| Sealed bids + uniform price makes sandwich attacks provably impossible | `SandwichResistant` verified: any trader with both buy and sell fills gets the same price on both sides — zero profit from sandwich pattern |
-| Post-trade privacy is structurally enforced | `PostTradeOrdersDestroyed` verified: after clearing, `buyOrders = <<>>` and `sellOrders = <<>>` — individual orders are destroyed, only clearing price + fills retained |
-| ZKDarkPool is a formal refinement of BatchedAuction | All 6 BatchedAuction invariants pass on ZKDarkPool's state space via INSTANCE variable mapping (ZKRefinement.tla) — privacy is a pure addition, not a mechanism change |
-| ShieldedDEX inherits all ZKDarkPool guarantees per pair | `PerPairUniformPrice`, `PerPairPriceImprovement`, `PerPairNoSelfTrades`, `PerPairSandwichResistant` all verified across 48,065 states |
-| Cross-pair isolation holds — each pair clears independently | `CrossPairIsolation` verified: each pair's trades use only that pair's clearing price, no cross-pair information leakage |
-| Asset-type privacy prevents cross-pair arbitrage | `CrossPairPriceConsistency` fails: P1 clears at 1, P2 clears at 2 with no mechanism to align — this is the price discovery cost of privacy |
-| Privacy adds a 4th dimension, does not fix the impossibility triangle | `NoImmediacy` verified: during commit phase, no trades exist in any pair — you still must wait for the batch |
-| AMM liquidity never runs out | `PositiveReserves` + `PositiveSwapOutput` hold in all states — swaps always succeed |
-| All mechanisms conserve assets (per-node) | `ConservationOfAssets` / `ConservationOfTokens` verified for each mechanism |
+| Batch auctions are safe to decentralize; CLOBs are not | `OrderingIndependence` verified for batches; TLC counterexample shows CLOB divergence across nodes |
+| Sealed bids + uniform price eliminates sandwich attacks | `SandwichResistant` verified: same price on both sides of any sandwich pattern → zero profit |
+| ZKDarkPool is a formal refinement of BatchedAuction | All 6 BatchedAuction invariants pass on ZKDarkPool's state space (ZKRefinement.tla) — privacy is a pure addition |
+| ShieldedDEX resists all 6 attack categories (unique) | `PerPairSandwichResistant`, `CrossPairIsolation` verified across 48,065 states; pair hidden prevents asset-targeted attacks |
+| Privacy does NOT fix the impossibility triangle | `NoImmediacy` verified + `CrossPairPriceConsistency` fails (P1@1, P2@2) — adds a 4th dimension (price discovery) instead |
+| AMM liquidity is always available but exploitable | `PositiveReserves` holds in all states; but sandwich, wash trading, and impermanent loss counterexamples all found |
 
 ## Vulnerability resistance summary (TLC-verified)
 

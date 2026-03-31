@@ -2,7 +2,7 @@
 
 <sub>[spec](https://github.com/oxarbitrage/formal-market-mechanisms/blob/main/specs/BatchedAuction.tla) · [config](https://github.com/oxarbitrage/formal-market-mechanisms/blob/main/specs/BatchedAuction.cfg)</sub>
 
-A periodic auction that collects orders over a batch window, then clears all at a single uniform price that maximizes traded volume. This models systems like [Penumbra](https://penumbra.zone/) (sealed-bid batch auctions with privacy on Cosmos), [CoW Protocol](https://cow.fi/) (batch auctions for MEV protection), and NYSE/NASDAQ opening/closing auctions. The academic foundation is Budish, Cramton, and Shim's "[The High-Frequency Trading Arms Race](https://faculty.chicagobooth.edu/eric.budish/research/HFT-FrequentBatchAuctions.pdf)" (2015), which proposes frequent batch auctions to eliminate the latency arms race.
+A periodic auction that collects orders over a batch window, then clears all at a single uniform price that maximizes traded volume. This models systems like [Penumbra](https://penumbra.zone/) (sealed-bid batch auctions with privacy on Cosmos), [CoW Protocol](https://cow.fi/) (batch auctions for MEV protection), and NYSE/NASDAQ opening/closing auctions. The academic foundation is Budish, Cramton, and Shim's "[The High-Frequency Trading Arms Race](https://econweb.umd.edu/~sweeting/hft-arms-race.pdf)" (2015), which proposes frequent batch auctions to eliminate the latency arms race.
 
 Because `OrderingIndependence` is verified, batch auctions are safe to decentralize — validators only need to agree on the **set** of orders, not their **sequence**. This is why Penumbra and CoW Protocol can run batch auctions across distributed validators without the consensus problems that plague decentralized CLOBs.
 

@@ -37,13 +37,6 @@ The attack works because AMM pricing is **path-dependent**: the adversary's fron
 - **Back-run**: adversary swaps in the opposite direction, capturing the spread
 - **Batch auction resistance**: `OrderingIndependence` + `UniformClearingPrice` make sandwiching impossible in BatchedAuction — there is no price to move between trades
 
-## Verified properties (pool correctness)
-
-| Property | Type | Description |
-|---|---|---|
-| PositiveReserves | Invariant | Pool reserves always > 0 through the attack |
-| ConstantProductInvariant | Invariant | `reserveA * reserveB >= initial k` (fees still grow k) |
-
 ## Attack properties (expected to fail)
 
 Add as INVARIANT to see counterexamples:

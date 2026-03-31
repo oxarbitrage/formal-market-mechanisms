@@ -43,8 +43,6 @@ The arbitrageur keeps trading until the AMM price converges to the CLOB range â€
 
 | Property | Type | Description |
 |---|---|---|
-| PositiveReserves | Invariant | AMM reserves always > 0 |
-| ConstantProductInvariant | Invariant | `reserveA * reserveB >= initial k` |
 | PriceNotDiverging | Invariant | Arbitrage always pushes AMM price toward CLOB range, never away |
 
 ## Arbitrage properties (expected to fail)

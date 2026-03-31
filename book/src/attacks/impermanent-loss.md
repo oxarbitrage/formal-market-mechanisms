@@ -29,13 +29,6 @@ The loss follows from the AM-GM inequality: any change in the price ratio causes
 - **Fee income**: k grows with every swap (0.3% fee), partially compensating IL
 - **AM-GM inequality**: `2 * reserveA * reserveB < InitReserveA * reserveB + InitReserveB * reserveA` whenever the price ratio changes
 
-## Verified properties (pool correctness)
-
-| Property | Type | Description |
-|---|---|---|
-| PositiveReserves | Invariant | Pool reserves always > 0 |
-| ConstantProductInvariant | Invariant | `reserveA * reserveB >= initial k` (fees grow k) |
-
 ## IL property (expected to fail)
 
 Add as INVARIANT to see counterexample:
