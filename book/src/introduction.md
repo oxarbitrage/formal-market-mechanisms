@@ -4,13 +4,13 @@ TLA+ specifications that formally verify and compare market mechanisms — CLOBs
 
 ```mermaid
 graph TD
+    AMM[AMM<br/>always-on liquidity<br/>comparison baseline]
     subgraph Exchange mechanisms
         CLOB[CentralizedCLOB<br/>immediacy] --> DCLOB[DecentralizedCLOB<br/>multi-node]
         BA[BatchedAuction<br/>fairness] -->|+ sealed bids| ZK[ZKDarkPool<br/>privacy]
         ZK -->|+ pair hiding| SDEX[ShieldedDEX<br/>full privacy]
         BA -.->|refinement proof| ZK
     end
-    AMM[AMM<br/>always-on liquidity<br/>comparison baseline]
     AMM ~~~ SAS[ShieldedAtomicSwap<br/>P2P settlement, no coordinator<br/>cross-chain native]
 ```
 
