@@ -22,9 +22,9 @@ graph LR
     ME -- "partial fill" --> SB
 ```
 
-Each order is matched **immediately** on arrival. The trade executes at the resting order's price. Different trades can execute at different prices (enabling spread arbitrage).
+Each order is matched **immediately** on arrival. If no match is possible (e.g., a buy at 10 when the best ask is 12), the order **rests** on the book until a compatible order arrives. When a match occurs, the trade executes at the resting order's price — the order that was already on the book. Different trades can execute at different prices (enabling spread arbitrage).
 
-- **Matching**: best bid vs best ask, executes at the ask (resting order) price
+- **Matching**: best bid vs best ask, executes at the price of the order already on the book
 - **Partial fills**: smaller side is fully filled, larger side's quantity is reduced
 - **Self-trade prevention**: a trader cannot match against themselves
 
