@@ -11,7 +11,7 @@ graph TD
         BA -.->|refinement proof| ZK
     end
     AMM[AMM<br/>always-on liquidity<br/>comparison baseline]
-    SAS[ShieldedAtomicSwap<br/>P2P settlement, no coordinator<br/>cross-chain native]
+    AMM ~~~ SAS[ShieldedAtomicSwap<br/>P2P settlement, no coordinator<br/>cross-chain native]
 ```
 
 **Key results (all TLC-verified, not just argued):**
