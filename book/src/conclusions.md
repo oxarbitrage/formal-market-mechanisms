@@ -23,14 +23,14 @@ The formal verification reveals a fundamental three-way trade-off between **fair
 
 | Attack | CentralizedCLOB | DecentralizedCLOB | BatchedAuction | ZKDarkPool | ShieldedDEX | AMM |
 |---|---|---|---|---|---|---|
-| Front-running | Vulnerable | Vulnerable | **Resistant** | **Resistant** | **Resistant** | N/A |
+| Front-running | Vulnerable | Vulnerable | Resistant (ordering only) | **Resistant** | **Resistant** | N/A |
 | Sandwich attack | Trust assumption | Vulnerable | **Resistant** | **Resistant** | **Resistant** | Vulnerable |
 | Latency arbitrage | Vulnerable | Vulnerable | **Resistant** | **Resistant** | **Resistant** | N/A |
 | Wash trading | Resistant | Resistant | Resistant | Resistant | Resistant | Vulnerable |
 | Spread arbitrage | Vulnerable | Vulnerable | **Resistant** | **Resistant** | **Resistant** | Vulnerable |
 | Asset-targeted attack | Vulnerable | Vulnerable | Vulnerable | Vulnerable | **Resistant** | Vulnerable |
 | Cross-pair info leakage | N/A | N/A | N/A | Yes (pair known) | **None** (verified) | N/A |
-| **Attacks resisted** | **1/6** | **1/6** | **5/6** | **5/6** | **6/6** | **1/6** |
+| **Attacks resisted** | **1/6** | **1/6** | **4/6** | **5/6** | **6/6** | **1/6** |
 
 ShieldedDEX is the only mechanism that resists all six attack categories. It inherits batch auction resistance to front-running, sandwich, latency arbitrage, spread arbitrage, and wash trading — and adds resistance to asset-targeted attacks because the pair itself is hidden. The cost: cross-pair price discovery is lost.
 

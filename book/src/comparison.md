@@ -8,7 +8,7 @@ Same orders, different outcomes — the key structural differences, verified by 
 | Ordering independence | No (price-time priority) | No (delivery order) | Yes (verified) | Yes (verified) | Yes (per-pair, verified) | No (price impact) |
 | Cross-node consensus | N/A (single node) | No (TLC counterexample) | Yes (ordering independence) | Yes (ordering independence) | Yes (per-pair) | N/A (single pool) |
 | Spread arbitrage possible | Yes | Yes | No (uniform price) | No (uniform price) | No (per-pair uniform price) | Yes (price impact) |
-| Front-running resistant | No (TLC counterexample) | No (ordering power) | Yes (ordering independence) | Yes (ordering independence) | Yes (pair hidden + ordering independence) | N/A (no order book) |
+| Front-running resistant | No (TLC counterexample) | No (ordering power) | Partial (ordering only — pre-trade bids visible) | Yes (sealed bids: ordering + information) | Yes (pair hidden + ordering independence) | N/A (no order book) |
 | Wash trading resistant | Yes (self-trade prevention) | Yes (self-trade prevention) | Yes (self-trade prevention) | Yes (self-trade prevention) | Yes (self-trade prevention) | No (no identity check) |
 | Sandwich attack resistant | Trust assumption (single operator) | No (ordering power) | Yes (uniform price) | Yes (verified: SandwichResistant) | Yes (verified: per-pair + pair hidden) | No (TLC counterexample) |
 | Pre-trade privacy | No | No | No | Yes (sealed bids) | Yes (sealed bids + pair hidden) | No |

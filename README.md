@@ -2,13 +2,13 @@
 
 TLA+ specifications that formally verify and compare market mechanisms — CLOBs, batch auctions, AMMs, and privacy-preserving dark pools — across correctness, fairness, MEV resistance, and decentralizability.
 
-**[Read the full book](book/src/SUMMARY.md)**
+**[Read the full book](book/src/SUMMARY.md)** · **[Read the blog post](blog.md)**
 
 ## Key results (all TLC-verified, not just argued)
 
 - An **impossibility triangle** between fairness, liquidity, and immediacy — no mechanism can provide all three
 - Batch auctions are **safe to decentralize** (OrderingIndependence); CLOBs are not (TLC counterexample: same orders → different trades at different nodes)
-- Sandwich attacks, front-running, and latency arbitrage are **structurally impossible** in batch auctions — formally verified, not just claimed
+- Sandwich attacks, front-running (ordering), and latency arbitrage are **structurally impossible** in batch auctions — formally verified, not just claimed; ZKDarkPool extends this to information-based front-running via sealed bids
 - Privacy (sealed bids + order destruction) is a **mechanism design tool** for MEV elimination, proven equivalent to batch clearing via refinement mapping
 - Asset-type privacy (ShieldedDEX) adds a **4th dimension** to the impossibility triangle — privacy vs price discovery — but does NOT fix the original three-way tradeoff
 - AMMs provide **always-available liquidity** but are vulnerable to sandwich attacks, wash trading, and impermanent loss — all with TLC counterexamples
@@ -56,13 +56,13 @@ TLA+ specifications that formally verify and compare market mechanisms — CLOBs
 
 | Attack | CLOB | Decentralized CLOB | Batch Auction | ZKDarkPool | ShieldedDEX | AMM |
 |---|---|---|---|---|---|---|
-| Front-running | Vulnerable | Vulnerable | **Resistant** | **Resistant** | **Resistant** | N/A |
+| Front-running | Vulnerable | Vulnerable | Resistant (ordering only) | **Resistant** | **Resistant** | N/A |
 | Sandwich | Trust assumption | Vulnerable | **Resistant** | **Resistant** | **Resistant** | Vulnerable |
 | Latency arbitrage | Vulnerable | Vulnerable | **Resistant** | **Resistant** | **Resistant** | N/A |
 | Wash trading | Resistant | Resistant | Resistant | Resistant | Resistant | Vulnerable |
 | Spread arbitrage | Vulnerable | Vulnerable | **Resistant** | **Resistant** | **Resistant** | Vulnerable |
 | Asset-targeted | Vulnerable | Vulnerable | Vulnerable | Vulnerable | **Resistant** | Vulnerable |
-| **Score** | **1/6** | **1/6** | **5/6** | **5/6** | **6/6** | **1/6** |
+| **Score** | **1/6** | **1/6** | **4/6** | **5/6** | **6/6** | **1/6** |
 
 ## Running
 
