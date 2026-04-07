@@ -1,19 +1,16 @@
 # Formal Market Mechanisms
 
-TLA+ specifications that formally verify and compare market mechanisms — CLOBs, batch auctions, AMMs, and privacy-preserving dark pools — across correctness, fairness, MEV resistance, and decentralizability.
+A collection of TLA+ specifications that formally verify and compare market mechanisms (CLOBs, batch auctions, AMMs, and privacy-preserving dark pools) across correctness, fairness, MEV resistance, and decentralizability.
+
 
 ```mermaid
 graph LR
-    subgraph Exchange mechanisms
-        CLOB[CentralizedCLOB<br/>immediacy] --> DCLOB[DecentralizedCLOB<br/>multi-node]
-        BA[BatchedAuction<br/>fairness] -->|+ sealed bids| ZK[ZKDarkPool<br/>privacy]
-        ZK -->|+ pair hiding| SDEX[ShieldedDEX<br/>full privacy]
-        BA -.->|refinement proof| ZK
-    end
-    subgraph Standalone
-        AMM[AMM<br/>always-on liquidity<br/>comparison baseline]
-        SAS[ShieldedAtomicSwap<br/>P2P settlement<br/>cross-chain native]
-    end
+    CLOB[CentralizedCLOB<br/><font size = '-1'>immediacy</font>] --> DCLOB[DecentralizedCLOB<br/><font size = '-1'>multi-node</font>]
+    BA[BatchedAuction<br/><font size = '-1'>fairness</font>] -->|sealed bids| ZK[ZKDarkPool<br/><font size = '-1'>privacy</font>]
+    ZK -->|pair hiding| SDEX[ShieldedDEX<br/><font size = '-1'>full privacy</font>]
+    BA -.->|refinement proof| ZK
+    AS[ShieldedAtomicSwap<br/><font size = '-1'>P2P settlement<br/>cross-chain native</font>]
+    AMM[AMM<br/><font size = '-1'>always-on liquidity<br/>comparison baseline</font>]
 ```
 
 **Key results (all TLC-verified, not just argued):**
