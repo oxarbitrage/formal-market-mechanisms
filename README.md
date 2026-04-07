@@ -72,7 +72,7 @@ Requires Java and [tla2tools.jar](https://github.com/tlaplus/tlaplus/releases). 
 java -DTLC -cp /path/to/tla2tools.jar tlc2.TLC <Module> -config <Module>.cfg -modelcheck
 ```
 
-See [Running the Specs](book/src/running.md) for the full list of commands, or use the [TLA+ VS Code extension](https://marketplace.visualstudio.com/items?itemName=tlaplus.vscode-tlaplus).
+See [Running the Specs](book/src/running.md) for the full list of commands, or use the [TLA+ VS Code extension](https://github.com/tlaplus/vscode-tlaplus).
 
 ## References
 
@@ -83,7 +83,7 @@ See [Running the Specs](book/src/running.md) for the full list of commands, or u
 | AMM | [Uniswap v2](https://docs.uniswap.org/contracts/v2/overview), SushiSwap, PancakeSwap, [Curve](https://curve.fi/), [Balancer](https://balancer.fi/) |
 | ZKDarkPool | [Penumbra](https://penumbra.zone/), [Renegade](https://renegade.fi/), [MEV Blocker](https://mevblocker.io/) |
 | ShieldedDEX | [Zcash ZSA (ZIP-226/227)](https://zips.z.cash/zip-0226), [Penumbra](https://penumbra.zone/), [Anoma](https://anoma.net/) |
-| ShieldedAtomicSwap | [Zcash ZSA (ZIP-226/227)](https://zips.z.cash/zip-0226), [Komodo AtomicDEX](https://atomicdex.io/), ZK-contingent payments |
+| ShieldedAtomicSwap | [Zcash ZSA (ZIP-226/227)](https://zips.z.cash/zip-0226), [Komodo AtomicDEX](https://komodoplatform.com/en/blog/what-is-atomicdex/), ZK-contingent payments |
 | DecentralizedCLOB | [Serum/OpenBook](https://www.openbook-solana.com/), [dYdX v4](https://dydx.exchange/), [Hyperliquid](https://hyperliquid.xyz/) |
 
 **Academic:** Budish, Cramton, Shim — "[The High-Frequency Trading Arms Race](https://econweb.umd.edu/~sweeting/hft-arms-race.pdf)" (2015)
