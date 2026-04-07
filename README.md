@@ -86,4 +86,4 @@ See [Running the Specs](book/src/running.md) for the full list of commands, or u
 | ShieldedAtomicSwap | [Zcash ZSA (ZIP-226/227)](https://zips.z.cash/zip-0226), [Komodo AtomicDEX](https://atomicdex.io/), ZK-contingent payments |
 | DecentralizedCLOB | [Serum/OpenBook](https://www.openbook-solana.com/), [dYdX v4](https://dydx.exchange/), [Hyperliquid](https://hyperliquid.xyz/) |
 
-**Academic:** Budish, Cramton, Shim — "[The High-Frequency Trading Arms Race](https://faculty.chicagobooth.edu/eric.budish/research/HFT-FrequentBatchAuctions.pdf)" (2015)
+**Academic:** Budish, Cramton, Shim — "[The High-Frequency Trading Arms Race](https://econweb.umd.edu/~sweeting/hft-arms-race.pdf)" (2015)
