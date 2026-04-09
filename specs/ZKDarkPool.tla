@@ -68,6 +68,12 @@ ClearingPriceVal ==
         /\ \A q \in Prices : (VolumeAt(q) = VolumeAt(p)) => p <= q
 
 \* ── Clearing engine (same as BatchedAuction) ──
+\* TODO: The clearing engine (ClearTrades, DemandAt, SupplyAt, VolumeAt,
+\* ClearingPriceVal) is a verbatim copy of BatchedAuction's clearing logic.
+\* Consider extracting it into Common.tla or a shared Clearing module so that
+\* BatchedAuction, ZKDarkPool, and ShieldedDEX all instantiate the same
+\* operator — keeping the three specs in sync and making it clear that
+\* ZKDarkPool does not alter clearing correctness (only adds privacy).
 ClearTrades(cp, vol) ==
     LET nb == Len(buyOrders)
         ns == Len(sellOrders)

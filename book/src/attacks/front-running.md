@@ -2,7 +2,7 @@
 
 <sub>[spec](https://github.com/oxarbitrage/formal-market-mechanisms/blob/main/specs/FrontRunning.tla) · [config](https://github.com/oxarbitrage/formal-market-mechanisms/blob/main/specs/FrontRunning.cfg)</sub>
 
-Models front-running on a CLOB — the CLOB analog of `SandwichAttack` (which targets AMMs). An adversary who controls transaction ordering consumes cheap sell-side liquidity before a victim's buy order, forcing the victim to fill at worse prices. This models HFT latency arbitrage, block builder front-running, and validator front-running in on-chain CLOBs like [dYdX](https://dydx.exchange/) and [Serum/OpenBook](https://www.openbook-solana.com/).
+Models front-running on a CLOB — the CLOB analog of `SandwichAttack` (which targets AMMs). An adversary who controls transaction ordering consumes cheap sell-side liquidity before a victim's buy order, forcing the victim to fill at worse prices. This models HFT latency arbitrage, block builder front-running, and validator front-running in on-chain CLOBs like [dYdX](https://dydx.exchange/) and [Serum/OpenBook](https://solanacompass.com/projects/openbook) (historical).
 
 ```mermaid
 sequenceDiagram

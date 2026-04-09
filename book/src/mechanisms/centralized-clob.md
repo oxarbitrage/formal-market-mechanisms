@@ -39,3 +39,11 @@ Each order is matched **immediately** on arrival. If no match is possible (e.g.,
 | UniqueOrderIds | Invariant | All order IDs on the books are distinct |
 | ConservationOfAssets | Invariant | Trade log is consistent across traders |
 | EventualMatching | Liveness | Crossed books between different traders are eventually resolved |
+
+## Comparison properties (expected to fail)
+
+Add as `INVARIANT` in `CentralizedCLOB.cfg` to see a counterexample:
+
+| Property | Description |
+|---|---|
+| AllTradesSamePrice | All trades execute at the same price (FAILS: CLOB trades execute at the resting order's price, which varies — this is what enables spread arbitrage. Contrast with `BatchedAuction` where `UniformClearingPrice` holds by construction) |

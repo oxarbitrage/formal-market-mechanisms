@@ -39,3 +39,11 @@ Traders swap tokens against the pool. The output amount is computed from the con
 | PositiveReserves | Invariant | Pool reserves are always > 0 |
 | PositiveSwapOutput | Invariant | Every swap produces output > 0 |
 | ConservationOfTokens | Invariant | Total tokens in system (pool + all traders) is constant |
+
+## Comparison properties (expected to fail)
+
+Add as `INVARIANT` in `AMM.cfg` to see a counterexample:
+
+| Property | Description |
+|---|---|
+| AllSwapsSamePrice | All swaps get the same effective price (FAILS: AMM prices depend on swap size and reserve state — larger swaps get worse rates due to price impact. Contrast with `BatchedAuction` where `UniformClearingPrice` holds for all trades) |

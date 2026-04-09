@@ -2,7 +2,7 @@
 
 <sub>[spec](https://github.com/oxarbitrage/formal-market-mechanisms/blob/main/specs/ImpermanentLoss.tla) · [config](https://github.com/oxarbitrage/formal-market-mechanisms/blob/main/specs/ImpermanentLoss.cfg)</sub>
 
-Models the economic risk for liquidity providers (LPs) in a constant-product AMM. An LP deposits tokens into the pool, external traders swap against it (moving the price), and the LP's position is compared to simply holding the original tokens. This is the fundamental risk of providing liquidity on [Uniswap](https://docs.uniswap.org/contracts/v2/concepts/advanced-topics/understanding-returns), and why protocols offer "liquidity mining" rewards to compensate LPs.
+Models the economic risk for **liquidity providers** (**LP**s) in a constant-product AMM. An LP deposits tokens into the pool, external traders swap against it (moving the price), and the LP's position is compared to simply holding the original tokens. The difference is **impermanent loss** (**IL**) — the LP ends up with fewer tokens (by value) than if they had just held. This is the fundamental risk of providing liquidity on [Uniswap](https://docs.uniswap.org/contracts/v2/concepts/advanced-topics/understanding-returns), and why protocols offer "liquidity mining" rewards to compensate LPs. See [Terminology](../shared.md#terminology) for definitions.
 
 ```mermaid
 sequenceDiagram

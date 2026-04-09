@@ -52,6 +52,13 @@ vars == << buyOrders, sellOrders, trades, clearPrice, phase, nextOrderId >>
 \* ── Parameterized clearing functions ──
 \* Same logic as BatchedAuction/ZKDarkPool, but taking order sequences
 \* as parameters so they can be applied independently per pair.
+\* TODO: DemandAtP, SupplyAtP, VolumeAtP, ClearingPriceP, and ClearTradesP
+\* are parameterized versions of the BatchedAuction/ZKDarkPool clearing engine.
+\* This clearing logic (demand/supply curves, volume maximisation, uniform price)
+\* is duplicated across three modules. It could be abstracted into a shared
+\* Clearing(buys, sells, Prices) module or operator family in Common.tla,
+\* reducing drift between specs and making the "same algorithm, different scope"
+\* relationship explicit and machine-checked.
 
 DemandAtP(buys, p) ==
     LET s[j \in 0..Len(buys)] ==
