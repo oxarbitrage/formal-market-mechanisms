@@ -2,7 +2,7 @@
 
 TLA+ specifications that formally verify and compare market mechanisms — CLOBs, batch auctions, AMMs, and privacy-preserving dark pools — across correctness, fairness, MEV resistance, and decentralizability.
 
-**[Read the full book](book/src/SUMMARY.md)** · **[Read the blog post](blog.md)**
+**[Read the full book](book/src/SUMMARY.md)** · **[Read the blog post](https://oxarbitrage.github.io/blog/why-the-way-you-trade-matters/)**
 
 ## Key results (all TLC-verified, not just argued)
 

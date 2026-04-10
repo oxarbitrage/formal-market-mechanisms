@@ -19,4 +19,4 @@ graph LR
 
 All results are TLC-verified — not just argued. See the [Conclusions](conclusions.md) chapter for the full summary of findings.
 
-For an accessible introduction to why this matters, read the [blog post](https://github.com/oxarbitrage/formal-market-mechanisms/blob/main/blog.md).
+For an accessible introduction to why this matters, read the [blog post](https://oxarbitrage.github.io/blog/why-the-way-you-trade-matters/).
